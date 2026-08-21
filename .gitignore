@@ -1,0 +1,8 @@
+.build/
+dist/
+Resources/ffmpeg
+Resources/*.dSYM
+Scripts/ffmpeg.sha256
+*.xcodeproj
+.DS_Store
+.vscode/
