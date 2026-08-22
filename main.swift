@@ -344,6 +344,18 @@ final class PlayerView: NSView {
         }
     }
 
+    func unpause() {
+        guard let mpv else { return }
+        "set".withCString { cmd in
+            "pause".withCString { prop in
+                "no".withCString { val in
+                    var args: [UnsafePointer<CChar>?] = [cmd, prop, val, nil]
+                    mpv_command(mpv, &args)
+                }
+            }
+        }
+    }
+
     func seek(seconds: Double) {
         guard let mpv else { return }
         String(seconds).withCString { val in
@@ -416,6 +428,9 @@ final class PlayerView: NSView {
         mpv_observe_property(mpv, 0, "width", MPV_FORMAT_INT64)
         mpv_observe_property(mpv, 0, "height", MPV_FORMAT_INT64)
         mpv_observe_property(mpv, 0, "pause", MPV_FORMAT_FLAG)
+        // Natural EOF never sends END_FILE under keep-open=always;
+        // eof-reached flipping true is the real end-of-file signal.
+        mpv_observe_property(mpv, 0, "eof-reached", MPV_FORMAT_FLAG)
 
         listenForEvents()
         return nil
@@ -468,20 +483,23 @@ final class PlayerView: NSView {
                             DispatchQueue.main.async {
                                 self?.delegate?.playerDidUpdatePlaybackState(isPaused: paused)
                             }
+                        } else if name == "eof-reached" {
+                            if self?.boolProperty("eof-reached") == true {
+                                DispatchQueue.main.async {
+                                    self?.delegate?.playerDidEndFile()
+                                }
+                            }
                         }
                     }
                 case MPV_EVENT_END_FILE:
                     if let endFile = event.data?.assumingMemoryBound(to: mpv_event_end_file.self) {
+                        // Only errors surface here; natural EOF arrives via eof-reached,
+                        // and END_FILE(stop) just means a new file replaced this one.
                         if endFile.pointee.reason == MPV_END_FILE_REASON_ERROR {
                             let msg = String(cString: mpv_error_string(endFile.pointee.error))
                             DispatchQueue.main.async {
                                 self?.fileLoaded = false
                                 self?.delegate?.playerDidEncounterError(msg)
-                            }
-                        } else {
-                            DispatchQueue.main.async {
-                                self?.fileLoaded = false
-                                self?.delegate?.playerDidEndFile()
                             }
                         }
                     }
@@ -511,6 +529,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
     private var isPaused = true
     private var currentFilePath: String?
     private var positionTimer: Timer?
+    private let vidExts: Set<String> = ["mp4", "mkv", "webm", "mov", "m4v", "avi"]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
@@ -765,7 +784,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
     }
 
     func playerDidEndFile() {
-        playerView.showOverlay()
+        guard let cur = currentFilePath else {
+            playerView.showOverlay()
+            return
+        }
+        let ns = cur as NSString
+        let dir = ns.deletingLastPathComponent
+        let files = ((try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? [])
+            .filter { vidExts.contains(($0 as NSString).pathExtension.lowercased()) }
+            // localizedStandardCompare = Finder-style natural sort (ep2 < ep10)
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        guard let idx = files.firstIndex(of: ns.lastPathComponent), idx + 1 < files.count else {
+            playerView.showOverlay()
+            return
+        }
+        playerView.unpause()
+        open(path: dir + "/" + files[idx + 1])
     }
 
     func playerDidFileLoad() {
