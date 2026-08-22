@@ -143,17 +143,24 @@ final class PlayerView: NSView {
             super.keyDown(with: event)
             return
         }
-        switch event.characters {
-        case "f":
-            window?.toggleFullScreen(nil)
-        case " ":
-            cyclePause()
-        case "l" where !event.modifierFlags.contains(.command):
-            nextTrack()
-        case "h" where !event.modifierFlags.contains(.command):
-            prevTrack()
+        switch event.keyCode {
+        case 124: // →
+            seek(seconds: event.modifierFlags.contains(.shift) ? 30 : 10)
+        case 123: // ←
+            seek(seconds: event.modifierFlags.contains(.shift) ? -30 : -10)
         default:
-            super.keyDown(with: event)
+            switch event.characters {
+            case "f":
+                window?.toggleFullScreen(nil)
+            case " ":
+                cyclePause()
+            case "l":
+                nextTrack()
+            case "h":
+                prevTrack()
+            default:
+                super.keyDown(with: event)
+            }
         }
     }
 
@@ -180,6 +187,18 @@ final class PlayerView: NSView {
         "playlist-prev".withCString { cmd in
             var args: [UnsafePointer<CChar>?] = [cmd, nil]
             mpv_command(mpv, &args)
+        }
+    }
+
+    func seek(seconds: Double) {
+        guard let mpv else { return }
+        String(seconds).withCString { val in
+            "seek".withCString { cmd in
+                "relative".withCString { flag in
+                    var args: [UnsafePointer<CChar>?] = [cmd, val, flag, nil]
+                    mpv_command(mpv, &args)
+                }
+            }
         }
     }
 
@@ -409,6 +428,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
 
         center.previousTrackCommand.addTarget { [weak self] _ in
             self?.playerView.prevTrack()
+            return .success
+        }
+
+        center.skipForwardCommand.preferredIntervals = [10]
+        center.skipForwardCommand.addTarget { [weak self] _ in
+            self?.playerView.seek(seconds: 10)
+            return .success
+        }
+
+        center.skipBackwardCommand.preferredIntervals = [10]
+        center.skipBackwardCommand.addTarget { [weak self] _ in
+            self?.playerView.seek(seconds: -10)
             return .success
         }
 
