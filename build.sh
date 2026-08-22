@@ -11,7 +11,7 @@ fi
 
 APP=OTV.app
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 swiftc -O -swift-version 5 \
     -framework AppKit \
@@ -23,6 +23,13 @@ swiftc -O -swift-version 5 \
     -o "$APP/Contents/MacOS/OTV"
 
 cp Info.plist "$APP/Contents/"
+cp OTV.icns "$APP/Contents/Resources/"
+
+# Regenerate the icon if the script or icns are missing.
+if [ ! -f OTV.icns ]; then
+    swift make_icon.swift "$PWD" && iconutil -c icns AppIcon.iconset -o OTV.icns
+    cp OTV.icns "$APP/Contents/Resources/"
+fi
 
 # Ad-hoc signing is mandatory on Apple Silicon.
 codesign --force --sign - "$APP"
