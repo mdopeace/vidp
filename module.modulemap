@@ -1,0 +1,5 @@
+module CMPV [system] {
+    umbrella "/opt/homebrew/include/mpv"
+    link "mpv"
+    export *
+}
