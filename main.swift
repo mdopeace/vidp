@@ -3,12 +3,15 @@ import OpenGL.GL3
 import OpenGL.GL
 import CoreVideo
 import MediaPlayer
+import UniformTypeIdentifiers
 import CMPV
 
 protocol PlayerDelegate: AnyObject {
     func playerDidUpdateVideoSize(width: Int64, height: Int64)
     func playerDidUpdatePlaybackState(isPaused: Bool)
     func playerDidEncounterError(_ message: String)
+    func playerDidEndFile()
+    func playerView(_ playerView: PlayerView, didReceiveFile path: String)
 }
 
 // C callbacks must be top-level functions.
@@ -40,7 +43,7 @@ final class PlayerLayer: CAOpenGLLayer {
     override init() {
         super.init()
         isAsynchronous = false
-        isOpaque = true
+        isOpaque = false
 
         // Eagerly create THE pixel format + context we'll use everywhere,
         // so mpv's render context binds to the exact context CA draws with.
@@ -68,7 +71,11 @@ final class PlayerLayer: CAOpenGLLayer {
     // Superclass implementation flushes the drawable; call after mpv renders.
     override func draw(inCGLContext ctx: CGLContextObj, pixelFormat: CGLPixelFormatObj,
                        forLayerTime t: CFTimeInterval, displayTime ts: UnsafePointer<CVTimeStamp>?) {
-        guard let player, let renderCtx else { return }
+        guard let player, let renderCtx, player.fileLoaded else {
+            glClearColor(0, 0, 0, 0)
+            glClear(GLbitfield(GL_COLOR_BUFFER_BIT))
+            return
+        }
 
         let b = player.bounds
         let scale = player.window?.backingScaleFactor ?? 2
@@ -114,6 +121,11 @@ final class PlayerView: NSView {
     private(set) var renderCtx: OpaquePointer?
     private(set) var playerLayer: PlayerLayer?
     weak var delegate: PlayerDelegate?
+    private(set) var fileLoaded = false
+
+    private var overlayView: NSView!
+    private var titleLabel: NSTextField!
+    private var subtitleLabel: NSTextField!
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -126,6 +138,100 @@ final class PlayerView: NSView {
         layer.player = self
         self.layer = layer
         playerLayer = layer
+
+        setupOverlay()
+        registerForDraggedTypes([.fileURL])
+    }
+
+    private func setupOverlay() {
+        overlayView = NSView()
+        overlayView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(overlayView)
+
+        let iconView = NSImageView()
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconView.image = NSImage(systemSymbolName: "arrow.down.doc", accessibilityDescription: "Drop a video file")
+        iconView.contentTintColor = NSColor(white: 1, alpha: 0.5)
+        iconView.imageScaling = .scaleProportionallyUpOrDown
+        overlayView.addSubview(iconView)
+
+        titleLabel = NSTextField(labelWithString: "Drag & drop a video to play")
+        titleLabel.font = NSFont.systemFont(ofSize: 20, weight: .semibold)
+        titleLabel.textColor = NSColor(white: 1, alpha: 0.85)
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        overlayView.addSubview(titleLabel)
+
+        subtitleLabel = NSTextField(labelWithString: "or press \u{2318}O to browse files")
+        subtitleLabel.font = NSFont.systemFont(ofSize: 13, weight: .regular)
+        subtitleLabel.textColor = NSColor(white: 1, alpha: 0.45)
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        overlayView.addSubview(subtitleLabel)
+
+        NSLayoutConstraint.activate([
+            overlayView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            overlayView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            iconView.topAnchor.constraint(equalTo: overlayView.topAnchor),
+            iconView.centerXAnchor.constraint(equalTo: overlayView.centerXAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 40),
+            iconView.heightAnchor.constraint(equalToConstant: 40),
+            titleLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: 14),
+            titleLabel.centerXAnchor.constraint(equalTo: overlayView.centerXAnchor),
+            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 6),
+            subtitleLabel.centerXAnchor.constraint(equalTo: overlayView.centerXAnchor),
+            subtitleLabel.bottomAnchor.constraint(equalTo: overlayView.bottomAnchor),
+        ])
+    }
+
+    func showOverlay() {
+        overlayView.isHidden = false
+    }
+
+    func hideOverlay() {
+        overlayView.isHidden = true
+    }
+
+    // MARK: - Drag and Drop
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        if hasValidFile(sender: sender) {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.2
+                self.overlayView.animator().wantsLayer = true
+                self.overlayView.animator().layer?.backgroundColor = NSColor(white: 0.15, alpha: 0.6).cgColor
+                self.overlayView.animator().layer?.cornerRadius = 16
+            }
+            return .copy
+        }
+        return []
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.2
+            self.overlayView.animator().layer?.backgroundColor = NSColor.clear.cgColor
+        }
+    }
+
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        hasValidFile(sender: sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        overlayView.layer?.borderWidth = 0
+        let opts: [NSPasteboard.ReadingOptionKey: Any] = [
+            .urlReadingContentsConformToTypes: ["public.movie"]
+        ]
+        guard let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: opts) as? [URL],
+              let url = urls.first else { return false }
+        delegate?.playerView(self, didReceiveFile: url.path)
+        return true
+    }
+
+    private func hasValidFile(sender: NSDraggingInfo) -> Bool {
+        let opts: [NSPasteboard.ReadingOptionKey: Any] = [
+            .urlReadingContentsConformToTypes: ["public.movie"]
+        ]
+        return sender.draggingPasteboard.canReadObject(forClasses: [NSURL.self], options: opts)
     }
 
     @available(*, unavailable)
@@ -268,6 +374,7 @@ final class PlayerView: NSView {
 
     func load(path: String) {
         guard let mpv else { return }
+        fileLoaded = true
         "loadfile".withCString { cmd in
             path.withCString { p in
                 var args: [UnsafePointer<CChar>?] = [cmd, p, nil]
@@ -312,7 +419,13 @@ final class PlayerView: NSView {
                         if endFile.pointee.reason == MPV_END_FILE_REASON_ERROR {
                             let msg = String(cString: mpv_error_string(endFile.pointee.error))
                             DispatchQueue.main.async {
+                                self?.fileLoaded = false
                                 self?.delegate?.playerDidEncounterError(msg)
+                            }
+                        } else {
+                            DispatchQueue.main.async {
+                                self?.fileLoaded = false
+                                self?.delegate?.playerDidEndFile()
                             }
                         }
                     }
@@ -342,13 +455,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
 
         playerView = PlayerView(frame: .zero)
 
+        // Translucent blur background
+        let visualEffectView = NSVisualEffectView()
+        visualEffectView.material = .hudWindow
+        visualEffectView.state = .active
+        visualEffectView.blendingMode = .withinWindow
+        visualEffectView.wantsLayer = true
+        visualEffectView.autoresizingMask = [.width, .height]
+
+        // Window: native shadow + rounded corners, no title bar strip
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1280, height: 720),
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            contentRect: NSRect(x: 0, y: 0, width: 1000, height: 650),
+            styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false)
         window.title = "OTV"
-        window.contentView = playerView
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.contentView = visualEffectView
+
+        // Player view on top of the blur
+        playerView.frame = visualEffectView.bounds
+        playerView.autoresizingMask = [.width, .height]
+        visualEffectView.addSubview(playerView)
 
         if let error = playerView.setup() {
             NSLog("OTV setup failed: \(error)")
@@ -377,6 +508,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
         appMenu.addItem(withTitle: "Quit OTV", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
         mainMenu.addItem(appMenuItem)
+
+        let fileMenuItem = NSMenuItem()
+        let fileMenu = NSMenu(title: "File")
+        fileMenu.addItem(withTitle: "Open\u{2026}", action: #selector(openDocument), keyEquivalent: "o")
+        fileMenuItem.submenu = fileMenu
+        mainMenu.addItem(fileMenuItem)
 
         let viewMenuItem = NSMenuItem()
         let viewMenu = NSMenu(title: "View")
@@ -453,6 +590,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
         open(path: files[0])
     }
 
+    @objc func openDocument() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [
+            .movie, .mpeg4Movie, .quickTimeMovie,
+            UTType(filenameExtension: "mkv")!,
+            UTType(filenameExtension: "webm")!,
+            UTType(filenameExtension: "avi")!,
+        ]
+        panel.begin { [weak self] response in
+            if response == .OK, let url = panel.url {
+                self?.open(path: url.path)
+            }
+        }
+    }
+
+    func playerView(_ playerView: PlayerView, didReceiveFile path: String) {
+        open(path: path)
+    }
+
     private func open(path: String) {
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
@@ -473,6 +631,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
 
     func playerDidUpdateVideoSize(width: Int64, height: Int64) {
         guard width > 0, height > 0, let screen = window.screen ?? NSScreen.main else { return }
+        playerView.hideOverlay()
         let maxW = screen.visibleFrame.width * 0.9
         let maxH = screen.visibleFrame.height * 0.9
         let aspect = CGFloat(width) / CGFloat(height)
@@ -496,6 +655,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
 
     func playerDidEncounterError(_ message: String) {
         NSLog("OTV playback error: \(message)")
+        playerView.showOverlay()
+    }
+
+    func playerDidEndFile() {
+        playerView.showOverlay()
     }
 }
 
