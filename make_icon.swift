@@ -12,20 +12,16 @@ let cornerRadius: CGFloat = 185
 // MARK: - Font
 
 func brandFont(_ size: CGFloat) -> CTFont {
-    let rounded = CTFontCreateWithName("SFProRounded-Bold" as CFString, size, nil)
-    if CTFontCopyPostScriptName(rounded) as String == "SFProRounded-Bold" { return rounded }
-    let sys = NSFont.systemFont(ofSize: size, weight: .bold)
-    if let desc = sys.fontDescriptor.withDesign(.rounded),
-       let nsf = NSFont(descriptor: desc, size: size) {
-        return CTFontCreateWithName(nsf.fontName as CFString, size, nil)
-    }
-    return CTFontCreateWithName("Helvetica-Bold" as CFString, size, nil)
+    let pro = CTFontCreateWithName("SFPro-Medium" as CFString, size, nil)
+    if CTFontCopyPostScriptName(pro) as String == "SFPro-Medium" { return pro }
+    let sys = NSFont.systemFont(ofSize: size, weight: .medium)
+    return CTFontCreateWithName(sys.fontName as CFString, size, nil)
 }
 
 func makeLine(_ text: String, _ font: CTFont) -> CTLine {
     let attrs: [CFString: Any] = [
         kCTFontAttributeName: font,
-        kCTKernAttributeName: Float(-CTFontGetSize(font) * 0.02),
+        kCTKernAttributeName: Float(CTFontGetSize(font) * 0.03),
     ]
     let astr = CFAttributedStringCreate(nil, text as CFString, attrs as CFDictionary)!
     return CTLineCreateWithAttributedString(astr)
@@ -82,27 +78,32 @@ func renderIcon(pixelSize px: Int) -> NSBitmapImageRep? {
     let path = CGPath(roundedRect: artRect,
                       cornerWidth: cornerRadius * scale, cornerHeight: cornerRadius * scale,
                       transform: nil)
+
+    // Clip and draw gradient.
+    ctx.saveGState()
     ctx.addPath(path)
     ctx.clip()
     let cs = CGColorSpace(name: CGColorSpace.sRGB)!
-    let top = CGColor(srgbRed: 0.15, green: 0.15, blue: 0.17, alpha: 1)
+    let top = CGColor(srgbRed: 0.22, green: 0.22, blue: 0.23, alpha: 1)
+    let mid = CGColor(srgbRed: 0.17, green: 0.17, blue: 0.18, alpha: 1)
     let bottom = CGColor(srgbRed: 0.08, green: 0.08, blue: 0.09, alpha: 1)
-    let bgGrad = CGGradient(colorsSpace: cs, colors: [top, bottom] as CFArray,
-                            locations: [0, 1])!
+    let bgGrad = CGGradient(colorsSpace: cs, colors: [top, mid, bottom] as CFArray,
+                            locations: [0, 0.5, 1])!
     ctx.drawLinearGradient(bgGrad,
                            start: CGPoint(x: artRect.midX, y: artRect.maxY),
                            end: CGPoint(x: artRect.midX, y: artRect.minY),
                            options: [])
+    ctx.restoreGState()
 
     // Wordmark: fit "otv" to ~72% of artwork width, centered by actual INK bounds
     // (typographic boxes are optically misleading).
-    var font = brandFont(400 * scale)
+    var font = brandFont(420 * scale)
     var line = makeLine("otv", font)
     var lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
     let maxW = artRect.width * 0.72
     if lineWidth > maxW {
         let fit = maxW / lineWidth
-        font = brandFont(400 * scale * fit)
+        font = brandFont(420 * scale * fit)
         line = makeLine("otv", font)
         lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
     }
