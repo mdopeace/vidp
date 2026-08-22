@@ -2,10 +2,12 @@ import AppKit
 import OpenGL.GL3
 import OpenGL.GL
 import CoreVideo
+import MediaPlayer
 import CMPV
 
 protocol PlayerDelegate: AnyObject {
     func playerDidUpdateVideoSize(width: Int64, height: Int64)
+    func playerDidUpdatePlaybackState(isPaused: Bool)
     func playerDidEncounterError(_ message: String)
 }
 
@@ -113,6 +115,8 @@ final class PlayerView: NSView {
     private(set) var playerLayer: PlayerLayer?
     weak var delegate: PlayerDelegate?
 
+    override var acceptsFirstResponder: Bool { true }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
 
@@ -132,6 +136,57 @@ final class PlayerView: NSView {
         if let window {
             playerLayer?.contentsScale = window.backingScaleFactor
         }
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.command) {
+            super.keyDown(with: event)
+            return
+        }
+        switch event.characters {
+        case "f":
+            window?.toggleFullScreen(nil)
+        case " ":
+            cyclePause()
+        case "l" where !event.modifierFlags.contains(.command):
+            nextTrack()
+        case "h" where !event.modifierFlags.contains(.command):
+            prevTrack()
+        default:
+            super.keyDown(with: event)
+        }
+    }
+
+    func cyclePause() {
+        guard let mpv else { return }
+        "cycle".withCString { cmd in
+            "pause".withCString { prop in
+                var args: [UnsafePointer<CChar>?] = [cmd, prop, nil]
+                mpv_command(mpv, &args)
+            }
+        }
+    }
+
+    func nextTrack() {
+        guard let mpv else { return }
+        "playlist-next".withCString { cmd in
+            var args: [UnsafePointer<CChar>?] = [cmd, nil]
+            mpv_command(mpv, &args)
+        }
+    }
+
+    func prevTrack() {
+        guard let mpv else { return }
+        "playlist-prev".withCString { cmd in
+            var args: [UnsafePointer<CChar>?] = [cmd, nil]
+            mpv_command(mpv, &args)
+        }
+    }
+
+    func boolProperty(_ name: String) -> Bool? {
+        guard let mpv else { return nil }
+        var value: Int32 = 0
+        return mpv_get_property(mpv, name, MPV_FORMAT_FLAG, &value) >= 0 ? value != 0 : nil
     }
 
     /// Initializes mpv + its render context. Returns an error message on failure.
@@ -186,6 +241,7 @@ final class PlayerView: NSView {
 
         mpv_observe_property(mpv, 0, "width", MPV_FORMAT_INT64)
         mpv_observe_property(mpv, 0, "height", MPV_FORMAT_INT64)
+        mpv_observe_property(mpv, 0, "pause", MPV_FORMAT_FLAG)
 
         listenForEvents()
         return nil
@@ -225,6 +281,11 @@ final class PlayerView: NSView {
                             DispatchQueue.main.async {
                                 self?.delegate?.playerDidUpdateVideoSize(width: w, height: h)
                             }
+                        } else if name == "pause" {
+                            let paused = self?.boolProperty("pause") ?? false
+                            DispatchQueue.main.async {
+                                self?.delegate?.playerDidUpdatePlaybackState(isPaused: paused)
+                            }
                         }
                     }
                 case MPV_EVENT_END_FILE:
@@ -255,8 +316,11 @@ final class PlayerView: NSView {
 final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
     var window: NSWindow!
     private var playerView: PlayerView!
+    private var isPaused = true
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        setupMainMenu()
+
         playerView = PlayerView(frame: .zero)
 
         window = NSWindow(
@@ -272,6 +336,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
         }
         playerView.delegate = self
 
+        setupRemoteCommands()
+
         window.center()
         window.makeKeyAndOrderFront(nil)
 
@@ -279,6 +345,75 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
         let args = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-") }
         if let first = args.first {
             open(path: first)
+        }
+    }
+
+    private func setupMainMenu() {
+        let mainMenu = NSMenu()
+
+        let appMenuItem = NSMenuItem()
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "About OTV", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Quit OTV", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenuItem.submenu = appMenu
+        mainMenu.addItem(appMenuItem)
+
+        let viewMenuItem = NSMenuItem()
+        let viewMenu = NSMenu(title: "View")
+        let fullscreenItem = NSMenuItem(title: "Enter Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
+        fullscreenItem.keyEquivalentModifierMask = [.command, .control]
+        viewMenu.addItem(fullscreenItem)
+        viewMenuItem.submenu = viewMenu
+        mainMenu.addItem(viewMenuItem)
+
+        let windowMenuItem = NSMenuItem()
+        let windowMenu = NSMenu(title: "Window")
+        windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowMenu.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+        windowMenuItem.submenu = windowMenu
+        mainMenu.addItem(windowMenuItem)
+        NSApplication.shared.windowsMenu = windowMenu
+
+        NSApp.mainMenu = mainMenu
+    }
+
+    private func setupRemoteCommands() {
+        let center = MPRemoteCommandCenter.shared()
+
+        center.togglePlayPauseCommand.addTarget { [weak self] _ in
+            self?.playerView.cyclePause()
+            return .success
+        }
+
+        center.playCommand.addTarget { [weak self] _ in
+            guard let self else { return .commandFailed }
+            if self.isPaused {
+                self.playerView.cyclePause()
+            }
+            return .success
+        }
+
+        center.pauseCommand.addTarget { [weak self] _ in
+            guard let self else { return .commandFailed }
+            if !self.isPaused {
+                self.playerView.cyclePause()
+            }
+            return .success
+        }
+
+        center.nextTrackCommand.addTarget { [weak self] _ in
+            self?.playerView.nextTrack()
+            return .success
+        }
+
+        center.previousTrackCommand.addTarget { [weak self] _ in
+            self?.playerView.prevTrack()
+            return .success
+        }
+
+        center.changePlaybackPositionCommand.addTarget { _ in
+            return .commandFailed
         }
     }
 
@@ -316,6 +451,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
         }
         window.setContentSize(size)
         window.center()
+    }
+
+    func playerDidUpdatePlaybackState(isPaused: Bool) {
+        self.isPaused = isPaused
+        let center = MPNowPlayingInfoCenter.default()
+        center.nowPlayingInfo = [
+            MPMediaItemPropertyTitle: window.title,
+            MPNowPlayingInfoPropertyPlaybackRate: isPaused ? 0.0 : 1.0,
+        ]
+        center.playbackState = isPaused ? .paused : .playing
     }
 
     func playerDidEncounterError(_ message: String) {

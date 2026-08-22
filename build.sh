@@ -15,6 +15,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 swiftc -O -swift-version 5 \
     -framework AppKit \
+    -framework MediaPlayer \
     -I . \
     -Xcc -I"$MPV_PREFIX/include" \
     -L "$MPV_PREFIX/lib" \
