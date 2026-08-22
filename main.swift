@@ -11,6 +11,7 @@ protocol PlayerDelegate: AnyObject {
     func playerDidUpdatePlaybackState(isPaused: Bool)
     func playerDidEncounterError(_ message: String)
     func playerDidEndFile()
+    func playerDidFileLoad()
     func playerView(_ playerView: PlayerView, didReceiveFile path: String)
 }
 
@@ -326,6 +327,7 @@ final class PlayerView: NSView {
         mpv_set_option_string(mpv, "vo", "libmpv")
         mpv_set_option_string(mpv, "hwdec", "videotoolbox")
         mpv_set_option_string(mpv, "keep-open", "always")
+        mpv_set_option_string(mpv, "save-position-on-quit", "yes")
 
         guard mpv_initialize(mpv) >= 0 else {
             mpv_destroy(mpv)
@@ -387,6 +389,12 @@ final class PlayerView: NSView {
         }
     }
 
+    func doubleProperty(_ name: String) -> Double? {
+        guard let mpv else { return nil }
+        var value: Double = 0
+        return mpv_get_property(mpv, name, MPV_FORMAT_DOUBLE, &value) >= 0 ? value : nil
+    }
+
     private func intProperty(_ name: String) -> Int64? {
         guard let mpv else { return nil }
         var value: Int64 = 0
@@ -429,6 +437,10 @@ final class PlayerView: NSView {
                             }
                         }
                     }
+                case MPV_EVENT_FILE_LOADED:
+                    DispatchQueue.main.async {
+                        self?.delegate?.playerDidFileLoad()
+                    }
                 case MPV_EVENT_SHUTDOWN:
                     DispatchQueue.main.async { NSApp.terminate(nil) }
                     return
@@ -449,6 +461,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
     var window: NSWindow!
     private var playerView: PlayerView!
     private var isPaused = true
+    private var currentFilePath: String?
+    private var positionTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
@@ -617,14 +631,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
             NSLog("OTV: no such file: \(path)")
             return
         }
+        savePosition()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
             self?.window.makeKeyAndOrderFront(nil)
             self?.playerView.load(path: path)
+            self?.currentFilePath = path
+            self?.startPositionTimer()
+        }
+    }
+
+    private func savePosition() {
+        guard let path = currentFilePath, let playerView else { return }
+        guard let pos = playerView.doubleProperty("time-pos"),
+              let dur = playerView.doubleProperty("duration"), dur > 0 else { return }
+        // Don't save if near the end (within 2s) — reopen will start fresh
+        guard dur - pos > 2 else {
+            UserDefaults.standard.removeObject(forKey: "pos:\(path)")
+            return
+        }
+        UserDefaults.standard.set(pos, forKey: "pos:\(path)")
+    }
+
+    private func restorePosition(for path: String) {
+        guard let playerView else { return }
+        let key = "pos:\(path)"
+        guard let saved = UserDefaults.standard.object(forKey: key) as? Double else { return }
+        // Seek after a brief delay so mpv has time to settle
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            String(saved).withCString { val in
+                "seek".withCString { cmd in
+                    "absolute".withCString { flag in
+                        var args: [UnsafePointer<CChar>?] = [cmd, val, flag, nil]
+                        mpv_command(playerView.mpv, &args)
+                    }
+                }
+            }
+        }
+    }
+
+    private func startPositionTimer() {
+        positionTimer?.invalidate()
+        positionTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+            self?.savePosition()
         }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        positionTimer?.invalidate()
+        savePosition()
     }
 
     // MARK: PlayerDelegate
@@ -660,6 +718,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
 
     func playerDidEndFile() {
         playerView.showOverlay()
+    }
+
+    func playerDidFileLoad() {
+        guard let path = currentFilePath else { return }
+        restorePosition(for: path)
     }
 }
 
