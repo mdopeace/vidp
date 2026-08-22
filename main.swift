@@ -12,6 +12,8 @@ protocol PlayerDelegate: AnyObject {
     func playerDidEncounterError(_ message: String)
     func playerDidEndFile()
     func playerDidFileLoad()
+    func playerDidRequestNext()
+    func playerDidRequestPrev()
     func playerView(_ playerView: PlayerView, didReceiveFile path: String)
 }
 
@@ -329,19 +331,11 @@ final class PlayerView: NSView {
     }
 
     func nextTrack() {
-        guard let mpv else { return }
-        "playlist-next".withCString { cmd in
-            var args: [UnsafePointer<CChar>?] = [cmd, nil]
-            mpv_command(mpv, &args)
-        }
+        delegate?.playerDidRequestNext()
     }
 
     func prevTrack() {
-        guard let mpv else { return }
-        "playlist-prev".withCString { cmd in
-            var args: [UnsafePointer<CChar>?] = [cmd, nil]
-            mpv_command(mpv, &args)
-        }
+        delegate?.playerDidRequestPrev()
     }
 
     func unpause() {
@@ -784,22 +778,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
     }
 
     func playerDidEndFile() {
-        guard let cur = currentFilePath else {
+        guard currentFilePath != nil else {
             playerView.showOverlay()
             return
         }
+        guard playAdjacent(offset: 1) else {
+            playerView.showOverlay()
+            return
+        }
+    }
+
+    func playerDidRequestNext() {
+        playAdjacent(offset: 1)
+    }
+
+    func playerDidRequestPrev() {
+        playAdjacent(offset: -1)
+    }
+
+    /// Plays the video `offset` slots away in the folder's natural-sorted list.
+    /// Returns false if there is no adjacent file (folder edges, no file open).
+    @discardableResult
+    private func playAdjacent(offset: Int) -> Bool {
+        guard let cur = currentFilePath else { return false }
         let ns = cur as NSString
         let dir = ns.deletingLastPathComponent
         let files = ((try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? [])
             .filter { vidExts.contains(($0 as NSString).pathExtension.lowercased()) }
             // localizedStandardCompare = Finder-style natural sort (ep2 < ep10)
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-        guard let idx = files.firstIndex(of: ns.lastPathComponent), idx + 1 < files.count else {
-            playerView.showOverlay()
-            return
+        guard let idx = files.firstIndex(of: ns.lastPathComponent),
+              files.indices.contains(idx + offset) else {
+            return false
         }
         playerView.unpause()
-        open(path: dir + "/" + files[idx + 1])
+        open(path: dir + "/" + files[idx + offset])
+        return true
     }
 
     func playerDidFileLoad() {
