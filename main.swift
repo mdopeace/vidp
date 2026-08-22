@@ -127,6 +127,7 @@ final class PlayerView: NSView {
     private var overlayView: NSView!
     private var titleLabel: NSTextField!
     private var subtitleLabel: NSTextField!
+    private var cursorHideTimer: Timer?
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -142,6 +143,52 @@ final class PlayerView: NSView {
 
         setupOverlay()
         registerForDraggedTypes([.fileURL])
+
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(enteredFullScreen),
+                           name: NSWindow.didEnterFullScreenNotification, object: nil)
+        center.addObserver(self, selector: #selector(exitedFullScreen),
+                           name: NSWindow.didExitFullScreenNotification, object: nil)
+    }
+
+    // MARK: - Cursor Auto-Hide (QuickTime-style)
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas where area.owner === self {
+            removeTrackingArea(area)
+        }
+        addTrackingArea(NSTrackingArea(
+            rect: .zero,
+            options: [.mouseMoved, .activeAlways, .inVisibleRect],
+            owner: self))
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        scheduleCursorHide()
+    }
+
+    private func scheduleCursorHide() {
+        cursorHideTimer?.invalidate()
+        cursorHideTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
+            guard let self, let window else { return }
+            if window.styleMask.contains(.fullScreen),
+               fileLoaded,
+               boolProperty("pause") == false {
+                NSCursor.setHiddenUntilMouseMoves(true)
+            }
+        }
+    }
+
+    @objc private func enteredFullScreen(_ note: Notification) {
+        guard note.object as? NSWindow === window else { return }
+        scheduleCursorHide()
+    }
+
+    @objc private func exitedFullScreen(_ note: Notification) {
+        guard note.object as? NSWindow === window else { return }
+        cursorHideTimer?.invalidate()
+        NSCursor.setHiddenUntilMouseMoves(false)
     }
 
     private func setupOverlay() {
@@ -377,6 +424,7 @@ final class PlayerView: NSView {
     func load(path: String) {
         guard let mpv else { return }
         fileLoaded = true
+        scheduleCursorHide()
         "loadfile".withCString { cmd in
             path.withCString { p in
                 var args: [UnsafePointer<CChar>?] = [cmd, p, nil]
