@@ -624,11 +624,18 @@ final class HUDOverlayView: NSView {
         titleLabel.cell?.isScrollable = false
         titleLabel.setContentHuggingPriority(.required, for: .vertical)
         titleLabel.setContentCompressionResistancePriority(.required, for: .vertical)
+        // Long titles must never push the window wider during layout passes
+        // (fullscreen exit re-solves window fitting size; the <=0.7W cap scales
+        // with the window, so only low compression resistance stops the growth).
+        titleLabel.setContentCompressionResistancePriority(.init(1), for: .horizontal)
+        titleLabel.setContentHuggingPriority(.init(1), for: .horizontal)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         subtitleLabel = NSTextField(labelWithString: "")
         subtitleLabel.font = .systemFont(ofSize: 13, weight: .regular)
         subtitleLabel.textColor = NSColor(white: 1, alpha: 0.6)
+        subtitleLabel.setContentCompressionResistancePriority(.init(1), for: .horizontal)
+        subtitleLabel.setContentHuggingPriority(.init(1), for: .horizontal)
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         addSubview(titleLabel)
@@ -874,6 +881,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
     private var isPaused = true
     private var currentFilePath: String?
     private var positionTimer: Timer?
+    private var pendingFilePath: String?
     private let vidExts: Set<String> = ["mp4", "mkv", "webm", "mov", "m4v", "avi"]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -932,6 +940,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
         let args = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-") }
         if let first = args.first {
             open(path: first)
+        }
+
+        // Deferred open from "Open With" (fires before finishLaunching)
+        if let pending = pendingFilePath {
+            pendingFilePath = nil
+            open(path: pending)
         }
     }
 
@@ -1024,7 +1038,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
 
     // Finder "Open With" sends files here (odoc Apple Event).
     func application(_ application: NSApplication, openFiles files: [String]) {
-        open(path: files[0])
+        if hudOverlay != nil {
+            open(path: files[0])
+        } else {
+            pendingFilePath = files[0]
+        }
     }
 
     @objc func openDocument() {
