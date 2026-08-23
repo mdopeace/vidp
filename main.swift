@@ -125,6 +125,7 @@ final class PlayerView: NSView {
     private(set) var playerLayer: PlayerLayer?
     weak var delegate: PlayerDelegate?
     private(set) var fileLoaded = false
+    private(set) var currentPath: String?
 
     private var overlayView: NSView!
     private var titleLabel: NSTextField!
@@ -385,6 +386,7 @@ final class PlayerView: NSView {
     func load(path: String) {
         guard let mpv else { return }
         fileLoaded = true
+        currentPath = path
         "loadfile".withCString { cmd in
             path.withCString { p in
                 var args: [UnsafePointer<CChar>?] = [cmd, p, nil]
@@ -407,6 +409,62 @@ final class PlayerView: NSView {
         guard let mpv else { return nil }
         var value: Int64 = 0
         return mpv_get_property(mpv, name, MPV_FORMAT_INT64, &value) >= 0 ? value : nil
+    }
+
+    func trackList() -> [[String: Any]] {
+        guard let mpv else { return [] }
+        var node = mpv_node()
+        guard mpv_get_property(mpv, "track-list", MPV_FORMAT_NODE, &node) >= 0 else { return [] }
+        defer { mpv_free_node_contents(&node) }
+        guard let list = node.u.list else { return [] }
+        var results: [[String: Any]] = []
+        for i in 0..<Int(list.pointee.num) {
+            let entry = list.pointee.values[i]
+            guard entry.format == MPV_FORMAT_NODE_MAP else { continue }
+            guard let map = entry.u.list else { continue }
+            var dict: [String: Any] = [:]
+            for j in 0..<Int(map.pointee.num) {
+                guard let keyPtr = map.pointee.keys?[j] else { continue }
+                let val = map.pointee.values![j]
+                let key = String(cString: keyPtr)
+                switch val.format {
+                case MPV_FORMAT_INT64:
+                    dict[key] = val.u.int64
+                case MPV_FORMAT_FLAG:
+                    dict[key] = val.u.flag != 0 ? Int64(1) : Int64(0)
+                case MPV_FORMAT_STRING:
+                    if let s = val.u.string { dict[key] = String(cString: s) }
+                default:
+                    break
+                }
+            }
+            results.append(dict)
+        }
+        return results
+    }
+
+    func setTrack(_ property: String, id: Int) {
+        guard let mpv else { return }
+        let value = id == 0 ? "no" : "\(id)"
+        "set".withCString { cmd in
+            property.withCString { prop in
+                value.withCString { val in
+                    var args: [UnsafePointer<CChar>?] = [cmd, prop, val, nil]
+                    mpv_command(mpv, &args)
+                }
+            }
+        }
+    }
+
+    private func restoreSavedTracks() {
+        guard let path = currentPath else { return }
+        let defaults = UserDefaults.standard
+        if let sub = defaults.object(forKey: "sid:\(path)") as? Int {
+            setTrack("sid", id: sub)
+        }
+        if let audio = defaults.object(forKey: "aid:\(path)") as? Int {
+            setTrack("aid", id: audio)
+        }
     }
 
     private func listenForEvents() {
@@ -451,6 +509,7 @@ final class PlayerView: NSView {
                 case MPV_EVENT_FILE_LOADED:
                     DispatchQueue.main.async {
                         self?.delegate?.playerDidFileLoad()
+                        self?.restoreSavedTracks()
                     }
                 case MPV_EVENT_SHUTDOWN:
                     DispatchQueue.main.async { NSApp.terminate(nil) }
@@ -614,6 +673,23 @@ final class HUDOverlayView: NSView {
             transportStack.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
 
+        // Top-right: subtitles + audio track pickers
+        let subsGlass = makeTransportButton(
+            symbol: "captions.bubble", pointSize: 15, diameter: 40,
+            action: #selector(subtitleTapped))
+        let audioGlass = makeTransportButton(
+            symbol: "speaker.wave.2", pointSize: 15, diameter: 40,
+            action: #selector(audioTapped))
+        let topRow = NSStackView(views: [subsGlass, audioGlass])
+        topRow.spacing = 12
+        topRow.alignment = .centerY
+        topRow.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(topRow)
+        NSLayoutConstraint.activate([
+            topRow.topAnchor.constraint(equalTo: topAnchor, constant: 20),
+            topRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
+        ])
+
         // Title above progress bar, left-aligned
         titleLabel = NSTextField(labelWithString: "")
         titleLabel.font = .systemFont(ofSize: 30, weight: .semibold)
@@ -738,6 +814,59 @@ final class HUDOverlayView: NSView {
     @objc private func rewindTapped() { playerView?.seek(seconds: -10); resetHideTimer() }
     @objc private func playTapped()   { playerView?.cyclePause(); resetHideTimer() }
     @objc private func forwardTapped(){ playerView?.seek(seconds: 10); resetHideTimer() }
+
+    private func showTrackMenu(type: String, property: String, for button: NSView) {
+        guard let pv = playerView else { return }
+        let tracks = pv.trackList().filter { ($0["type"] as? String) == type }
+        guard !tracks.isEmpty else { return }
+        let menu = NSMenu()
+        let sel = #selector(trackMenuItemTapped(_:))
+        if type == "sub" {
+            let off = NSMenuItem(title: "Off", action: sel, keyEquivalent: "")
+            off.target = self
+            off.representedObject = property
+            off.tag = 0
+            let current = pv.trackList().first { ($0["type"] as? String) == type && ($0["selected"] as? Int64) == 1 }
+            if current == nil { off.state = .on }
+            menu.addItem(off)
+        }
+        for track in tracks {
+            guard let id = track["id"] as? Int64 else { continue }
+            let title = (track["title"] as? String) ?? "Track \(id)"
+            let lang = (track["lang"] as? String) ?? ""
+            let label = lang.isEmpty ? title : "\(lang.uppercased()) — \(title)"
+            let item = NSMenuItem(title: label, action: sel, keyEquivalent: "")
+            item.target = self
+            item.representedObject = property
+            item.tag = Int(id)
+            if (track["selected"] as? Int64) == 1 { item.state = .on }
+            menu.addItem(item)
+        }
+        NSMenu.popUpContextMenu(menu, with: NSApp.currentEvent ?? NSApplication.shared.currentEvent!, for: button)
+        resetHideTimer()
+    }
+
+    @objc private func subtitleTapped() {
+        showTrackMenu(type: "sub", property: "sid", for: senderView())
+    }
+
+    @objc private func audioTapped() {
+        showTrackMenu(type: "audio", property: "aid", for: senderView())
+    }
+
+    private func senderView() -> NSView {
+        guard let event = NSApp.currentEvent else { return self }
+        return hitTest(convert(event.locationInWindow, from: nil)) ?? self
+    }
+
+    @objc private func trackMenuItemTapped(_ sender: NSMenuItem) {
+        guard let property = sender.representedObject as? String else { return }
+        playerView?.setTrack(property, id: sender.tag)
+        if let path = playerView?.currentPath {
+            UserDefaults.standard.set(sender.tag, forKey: "\(property):\(path)")
+        }
+        resetHideTimer()
+    }
 
     func updateDisplay() {
         guard let pv = playerView, !isScrubbing else { return }
