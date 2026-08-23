@@ -97,13 +97,13 @@ func renderIcon(pixelSize px: Int) -> NSBitmapImageRep? {
 
     // Wordmark: fit "otv" to ~72% of artwork width, centered by actual INK bounds
     // (typographic boxes are optically misleading).
-    var font = brandFont(420 * scale)
+    var font = brandFont(450 * scale)
     var line = makeLine("øtv", font)
     var lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
-    let maxW = artRect.width * 0.72
+    let maxW = artRect.width * 0.80
     if lineWidth > maxW {
         let fit = maxW / lineWidth
-        font = brandFont(420 * scale * fit)
+        font = brandFont(450 * scale * fit)
         line = makeLine("øtv", font)
         lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
     }
