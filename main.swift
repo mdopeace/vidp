@@ -1011,6 +1011,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
     private var currentFilePath: String?
     private var positionTimer: Timer?
     private var pendingFilePath: String?
+    private var sleepActivity: NSObjectProtocol?
     private let vidExts: Set<String> = ["mp4", "mkv", "webm", "mov", "m4v", "avi"]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -1277,12 +1278,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
     func playerDidUpdatePlaybackState(isPaused: Bool) {
         self.isPaused = isPaused
         hudOverlay.setPaused(isPaused)
+        updateSleepActivity(paused: isPaused)
         let center = MPNowPlayingInfoCenter.default()
         center.nowPlayingInfo = [
             MPMediaItemPropertyTitle: window.title,
             MPNowPlayingInfoPropertyPlaybackRate: isPaused ? 0.0 : 1.0,
         ]
         center.playbackState = isPaused ? .paused : .playing
+    }
+
+    /// Hold a NoDisplaySleepAssertion while playing so macOS doesn't lock/sleep/screensaver.
+    private func updateSleepActivity(paused: Bool) {
+        if !paused {
+            if sleepActivity == nil {
+                sleepActivity = ProcessInfo.processInfo.beginActivity(
+                    options: [.idleDisplaySleepDisabled],
+                    reason: "OTV playback")
+            }
+        } else if let token = sleepActivity {
+            ProcessInfo.processInfo.endActivity(token)
+            sleepActivity = nil
+        }
     }
 
     func playerDidEncounterError(_ message: String) {
