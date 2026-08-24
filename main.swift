@@ -1264,6 +1264,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
     func playerDidUpdateVideoSize(width: Int64, height: Int64) {
         guard width > 0, height > 0, let screen = window.screen ?? NSScreen.main else { return }
         playerView.hideOverlay()
+        // In fullscreen the window must keep covering the screen; mpv letterboxes
+        // the new aspect ratio itself. setContentSize/center() would shrink the
+        // fullscreen window to windowed size, leaving blank space around it.
+        guard !window.styleMask.contains(.fullScreen) else { return }
         let maxW = screen.visibleFrame.width * 0.9
         let maxH = screen.visibleFrame.height * 0.9
         let aspect = CGFloat(width) / CGFloat(height)
