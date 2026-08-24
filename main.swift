@@ -692,7 +692,8 @@ final class HUDOverlayView: NSView {
 
         // Title above progress bar, left-aligned
         titleLabel = NSTextField(labelWithString: "")
-        titleLabel.font = .systemFont(ofSize: 30, weight: .semibold)
+        let desc = NSFont.systemFont(ofSize: 30).fontDescriptor.withSymbolicTraits([.bold, .italic])
+        titleLabel.font = NSFont(descriptor: desc, size: 30) ?? .boldSystemFont(ofSize: 30)
         titleLabel.textColor = .white
         titleLabel.lineBreakMode = .byWordWrapping
         titleLabel.maximumNumberOfLines = 0
@@ -780,6 +781,11 @@ final class HUDOverlayView: NSView {
     override func layout() {
         super.layout()
         titleLabel.preferredMaxLayoutWidth = bounds.width * 0.7
+        // Full 30pt at fullscreen width, scaled down proportionally in windowed mode
+        let refWidth = window?.screen?.frame.width ?? bounds.width
+        let size = max(18, 30 * min(1, bounds.width / refWidth))
+        let desc = NSFont.systemFont(ofSize: size).fontDescriptor.withSymbolicTraits([.bold, .italic])
+        titleLabel.font = NSFont(descriptor: desc, size: size) ?? .boldSystemFont(ofSize: size)
     }
 
     @available(*, unavailable)
