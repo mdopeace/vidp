@@ -36,6 +36,11 @@ private func mpvUpdateCallback(_ ctx: UnsafeMutableRawPointer?) {
 }
 
 
+/// Same font the app icon logo is drawn with (see make_icon.swift).
+private func brandFont(_ size: CGFloat) -> NSFont {
+    NSFont(name: "MarkerFelt-Wide", size: size) ?? .systemFont(ofSize: size)
+}
+
 /// CAOpenGLLayer that renders mpv frames into its own drawable.
 final class PlayerLayer: CAOpenGLLayer {
     weak var player: PlayerView?
@@ -159,13 +164,13 @@ final class PlayerView: NSView {
         overlayView.addSubview(iconView)
 
         titleLabel = NSTextField(labelWithString: "Drag & drop a video to play")
-        titleLabel.font = NSFont.systemFont(ofSize: 20, weight: .semibold)
+        titleLabel.font = brandFont(20)
         titleLabel.textColor = NSColor(white: 1, alpha: 0.85)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         overlayView.addSubview(titleLabel)
 
         subtitleLabel = NSTextField(labelWithString: "or press \u{2318}O to browse files")
-        subtitleLabel.font = NSFont.systemFont(ofSize: 13, weight: .regular)
+        subtitleLabel.font = brandFont(13)
         subtitleLabel.textColor = NSColor(white: 1, alpha: 0.45)
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         overlayView.addSubview(subtitleLabel)
@@ -699,8 +704,7 @@ final class HUDOverlayView: NSView {
 
         // Title above progress bar, left-aligned
         titleLabel = NSTextField(labelWithString: "")
-        let desc = NSFont.systemFont(ofSize: 30).fontDescriptor.withSymbolicTraits([.bold, .italic])
-        titleLabel.font = NSFont(descriptor: desc, size: 30) ?? .boldSystemFont(ofSize: 30)
+        titleLabel.font = brandFont(30)
         titleLabel.textColor = .white
         titleLabel.lineBreakMode = .byWordWrapping
         titleLabel.maximumNumberOfLines = 0
@@ -716,7 +720,7 @@ final class HUDOverlayView: NSView {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         subtitleLabel = NSTextField(labelWithString: "")
-        subtitleLabel.font = .systemFont(ofSize: 13, weight: .regular)
+        subtitleLabel.font = brandFont(13)
         subtitleLabel.textColor = NSColor(white: 1, alpha: 0.6)
         subtitleLabel.setContentCompressionResistancePriority(.init(1), for: .horizontal)
         subtitleLabel.setContentHuggingPriority(.init(1), for: .horizontal)
@@ -791,8 +795,7 @@ final class HUDOverlayView: NSView {
         // Full 30pt at fullscreen width, scaled down proportionally in windowed mode
         let refWidth = window?.screen?.frame.width ?? bounds.width
         let size = max(18, 30 * min(1, bounds.width / refWidth))
-        let desc = NSFont.systemFont(ofSize: size).fontDescriptor.withSymbolicTraits([.bold, .italic])
-        titleLabel.font = NSFont(descriptor: desc, size: size) ?? .boldSystemFont(ofSize: size)
+        titleLabel.font = brandFont(size)
     }
 
     @available(*, unavailable)

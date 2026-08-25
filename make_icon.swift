@@ -12,8 +12,8 @@ let cornerRadius: CGFloat = 185
 // MARK: - Font
 
 func brandFont(_ size: CGFloat) -> CTFont {
-    let felt = CTFontCreateWithName("MarkerFelt-Thin" as CFString, size, nil)
-    if CTFontCopyPostScriptName(felt) as String == "MarkerFelt-Thin" { return felt }
+    let felt = CTFontCreateWithName("MarkerFelt-Wide" as CFString, size, nil)
+    if CTFontCopyPostScriptName(felt) as String == "MarkerFelt-Wide" { return felt }
     let sys = NSFont.systemFont(ofSize: size, weight: .medium)
     return CTFontCreateWithName(sys.fontName as CFString, size, nil)
 }
