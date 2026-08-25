@@ -628,6 +628,13 @@ final class ProgressView: NSView {
 
 // MARK: - HUD Overlay
 
+final class NudgeUpLabel: NSTextField {
+    var yNudge: CGFloat = 1
+    override var alignmentRectInsets: NSEdgeInsets {
+        NSEdgeInsets(top: yNudge, left: 0, bottom: -yNudge, right: 0)
+    }
+}
+
 final class HUDOverlayView: NSView {
     private var hideTimer: Timer?
     private var displayTimer: Timer?
@@ -721,12 +728,12 @@ final class HUDOverlayView: NSView {
         // Bottom progress bar
         let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
 
-        elapsedLabel = NSTextField(labelWithString: "0:00")
+        elapsedLabel = NudgeUpLabel(labelWithString: "00:00:00")
         elapsedLabel.font = timeFont
         elapsedLabel.textColor = .white
         elapsedLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        remainingLabel = NSTextField(labelWithString: "-0:00")
+        remainingLabel = NudgeUpLabel(labelWithString: "-00:00:00")
         remainingLabel.font = timeFont
         remainingLabel.textColor = NSColor(white: 1, alpha: 0.6)
         remainingLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -884,15 +891,9 @@ final class HUDOverlayView: NSView {
     }
 
     private func formatTime(_ seconds: Double) -> String {
-        guard seconds.isFinite, seconds >= 0 else { return "0:00" }
+        guard seconds.isFinite, seconds >= 0 else { return "00:00:00" }
         let total = Int(seconds)
-        let h = total / 3600
-        let m = (total % 3600) / 60
-        let s = total % 60
-        if h > 0 {
-            return String(format: "%d:%02d:%02d", h, m, s)
-        }
-        return String(format: "%d:%02d", m, s)
+        return String(format: "%02d:%02d:%02d", total / 3600, (total % 3600) / 60, total % 60)
     }
 
     private func resetHideTimer() {
