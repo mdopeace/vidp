@@ -3,19 +3,19 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>TVO</string>
+	<string>WO</string>
 	<key>CFBundleDisplayName</key>
-	<string>TVO</string>
+	<string>WO</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.vidp.tvo</string>
+	<string>com.vidp.wo</string>
 	<key>CFBundleVersion</key>
 	<string>0.1</string>
 	<key>CFBundleShortVersionString</key>
 	<string>0.1</string>
 	<key>CFBundleExecutable</key>
-	<string>TVO</string>
+	<string>WO</string>
 	<key>CFBundleIconFile</key>
-	<string>TVO</string>
+	<string>WO</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleInfoDictionaryVersion</key>

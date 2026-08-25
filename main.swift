@@ -1043,7 +1043,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
             styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false)
-        window.title = "TVO"
+        window.title = "WO"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isOpaque = false
@@ -1056,7 +1056,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
         visualEffectView.addSubview(playerView)
 
         if let error = playerView.setup() {
-            NSLog("TVO setup failed: \(error)")
+            NSLog("WO setup failed: \(error)")
         }
         playerView.delegate = self
 
@@ -1076,7 +1076,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
         window.center()
         window.makeKeyAndOrderFront(nil)
 
-        // CLI fallback: TVO.app/Contents/MacOS/TVO <file>
+        // CLI fallback: WO.app/Contents/MacOS/WO <file>
         let args = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-") }
         if let first = args.first {
             open(path: first)
@@ -1094,9 +1094,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
 
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About TVO", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "About WO", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit TVO", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit WO", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
         mainMenu.addItem(appMenuItem)
 
@@ -1209,7 +1209,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
     private func open(path: String) {
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
-            NSLog("TVO: no such file: \(path)")
+            NSLog("WO: no such file: \(path)")
             return
         }
         savePosition()
@@ -1307,7 +1307,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
             if sleepActivity == nil {
                 sleepActivity = ProcessInfo.processInfo.beginActivity(
                     options: [.idleDisplaySleepDisabled],
-                    reason: "TVO playback")
+                    reason: "WO playback")
             }
         } else if let token = sleepActivity {
             ProcessInfo.processInfo.endActivity(token)
@@ -1316,7 +1316,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
     }
 
     func playerDidEncounterError(_ message: String) {
-        NSLog("TVO playback error: \(message)")
+        NSLog("WO playback error: \(message)")
         playerView.showOverlay()
     }
 
