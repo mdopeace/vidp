@@ -1,7 +1,7 @@
 import AppKit
 import CoreText
 
-// Generates the OTV app icon (Apple TV style: dark rounded square, "otv" wordmark
+// Generates the TVO app icon (dark rounded square, "tvø" wordmark
 // with subtle rainbow tint). Usage: swift make_icon.swift <output-dir>
 
 let outDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
@@ -12,8 +12,8 @@ let cornerRadius: CGFloat = 185
 // MARK: - Font
 
 func brandFont(_ size: CGFloat) -> CTFont {
-    let pro = CTFontCreateWithName("SFPro-Medium" as CFString, size, nil)
-    if CTFontCopyPostScriptName(pro) as String == "SFPro-Medium" { return pro }
+    let felt = CTFontCreateWithName("MarkerFelt-Thin" as CFString, size, nil)
+    if CTFontCopyPostScriptName(felt) as String == "MarkerFelt-Thin" { return felt }
     let sys = NSFont.systemFont(ofSize: size, weight: .medium)
     return CTFontCreateWithName(sys.fontName as CFString, size, nil)
 }
@@ -95,16 +95,16 @@ func renderIcon(pixelSize px: Int) -> NSBitmapImageRep? {
                            options: [])
     ctx.restoreGState()
 
-    // Wordmark: fit "otv" to ~72% of artwork width, centered by actual INK bounds
+    // Wordmark: fit "tvø" to ~72% of artwork width, centered by actual INK bounds
     // (typographic boxes are optically misleading).
     var font = brandFont(450 * scale)
-    var line = makeLine("øtv", font)
+    var line = makeLine("tvø", font)
     var lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
     let maxW = artRect.width * 0.80
     if lineWidth > maxW {
         let fit = maxW / lineWidth
         font = brandFont(450 * scale * fit)
-        line = makeLine("øtv", font)
+        line = makeLine("tvø", font)
         lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
     }
     let ascent = CTFontGetAscent(font)

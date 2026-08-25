@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds OTV.app — minimal libmpv-based video player.
+# Builds TVO.app — minimal libmpv-based video player.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -9,7 +9,7 @@ if [ ! -f "$MPV_PREFIX/lib/libmpv.dylib" ]; then
     exit 1
 fi
 
-APP=OTV.app
+APP=TVO.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
@@ -22,21 +22,21 @@ swiftc -O -swift-version 5 \
     -L "$MPV_PREFIX/lib" \
     -lmpv \
     main.swift \
-    -o "$APP/Contents/MacOS/OTV"
+    -o "$APP/Contents/MacOS/TVO"
 
 cp Info.plist "$APP/Contents/"
-cp OTV.icns "$APP/Contents/Resources/"
+cp TVO.icns "$APP/Contents/Resources/"
 
 # Regenerate the icon if the script or icns are missing.
-if [ ! -f OTV.icns ]; then
-    swift make_icon.swift "$PWD" && iconutil -c icns AppIcon.iconset -o OTV.icns
-    cp OTV.icns "$APP/Contents/Resources/"
+if [ ! -f TVO.icns ]; then
+    swift make_icon.swift "$PWD" && iconutil -c icns AppIcon.iconset -o TVO.icns
+    cp TVO.icns "$APP/Contents/Resources/"
 fi
 
 # Ad-hoc signing is mandatory on Apple Silicon.
 codesign --force --sign - "$APP"
 
-# Register with Launch Services so Finder offers OTV in "Open With".
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$PWD/$APP"
+# Register with Launch Services so Finder offers TVO in "Open With".
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$PWD/$APP" 2>/dev/null
 
 echo "Built $APP"
