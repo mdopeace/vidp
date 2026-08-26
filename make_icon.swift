@@ -1,68 +1,17 @@
 import AppKit
-import CoreText
 
-// Generates the WO app icon (dark rounded square, "📽️" wordmark).
+// Generates the WO app icon — composites video_5154901.png onto dark rounded background.
 // Usage: swift make_icon.swift <output-dir>
 
 let outDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
 let canvas: CGFloat = 1024
-let inset: CGFloat = 100          // artwork 824x824 on the macOS icon grid
+let inset: CGFloat = 100
 let cornerRadius: CGFloat = 185
 
-// MARK: - Font
-
-func brandFont(_ size: CGFloat) -> CTFont {
-    let felt = CTFontCreateWithName("MarkerFelt-Wide" as CFString, size, nil)
-    if CTFontCopyPostScriptName(felt) as String == "MarkerFelt-Wide" { return felt }
-    let sys = NSFont.systemFont(ofSize: size, weight: .medium)
-    return CTFontCreateWithName(sys.fontName as CFString, size, nil)
+guard let sourceImage = NSImage(contentsOfFile: "resources/icon-source.png") else {
+    FileHandle.standardError.write(Data("failed to load video_5154901.png\n".utf8))
+    exit(1)
 }
-
-func makeLine(_ text: String, _ font: CTFont) -> CTLine {
-    let attrs: [CFString: Any] = [
-        kCTFontAttributeName: font,
-        kCTKernAttributeName: Float(CTFontGetSize(font) * 0.03),
-    ]
-    let astr = CFAttributedStringCreate(nil, text as CFString, attrs as CFDictionary)!
-    return CTLineCreateWithAttributedString(astr)
-}
-
-// MARK: - Ink bounding box scan (top-origin pixel coords)
-
-func inkBounds(_ ctx: CGContext) -> CGRect {
-    let w = ctx.width, h = ctx.height
-    guard let data = ctx.data else { return .null }
-    let buf = data.assumingMemoryBound(to: UInt8.self)
-    let bpr = ctx.bytesPerRow
-    let stepY = max(1, h / 400), stepX = max(1, w / 400)
-    var minX = w, maxX = -1, minY = h, maxY = -1
-    for y in stride(from: 0, to: h, by: stepY) {
-        for x in stride(from: 0, to: w, by: stepX) {
-            if buf[y * bpr + x] > 8 {
-                minX = min(minX, x); maxX = max(maxX, x)
-                minY = min(minY, y); maxY = max(maxY, y)
-            }
-        }
-    }
-    guard maxX >= minX else { return .null }
-    return CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1)
-}
-
-// MARK: - Glyph mask (alpha-only bitmap of the wordmark)
-
-func glyphMask(line: CTLine, font: CTFont, width w: Int, height h: Int,
-               baselineY: CGFloat, originX: CGFloat) -> (CGImage?, CGRect) {
-    guard let ctx = CGContext(data: nil, width: w, height: h,
-                              bitsPerComponent: 8, bytesPerRow: 0,
-                              space: CGColorSpace(name: CGColorSpace.linearGray)!,
-                              bitmapInfo: CGImageAlphaInfo.alphaOnly.rawValue) else { return (nil, .null) }
-    ctx.setFillColor(CGColor(gray: 1, alpha: 1))
-    ctx.textPosition = CGPoint(x: originX, y: baselineY)
-    CTLineDraw(line, ctx)
-    return (ctx.makeImage(), inkBounds(ctx))
-}
-
-// MARK: - Icon renderer
 
 func renderIcon(pixelSize px: Int) -> NSBitmapImageRep? {
     let scale = CGFloat(px) / canvas
@@ -72,16 +21,15 @@ func renderIcon(pixelSize px: Int) -> NSBitmapImageRep? {
                               space: CGColorSpace(name: CGColorSpace.sRGB)!,
                               bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
 
-    // Dark charcoal gradient background on the icon grid.
-    let artRect = CGRect(x: inset * scale, y: inset * scale,
-                         width: (canvas - inset * 2) * scale, height: (canvas - inset * 2) * scale)
-    let path = CGPath(roundedRect: artRect,
-                      cornerWidth: cornerRadius * scale, cornerHeight: cornerRadius * scale,
-                      transform: nil)
+    let aw = (canvas - inset * 2) * scale
+    let artRect = CGRect(x: inset * scale, y: inset * scale, width: aw, height: aw)
+    let bgPath = CGPath(roundedRect: artRect,
+                        cornerWidth: cornerRadius * scale, cornerHeight: cornerRadius * scale,
+                        transform: nil)
 
-    // Clip and draw gradient.
+    // Dark charcoal gradient background
     ctx.saveGState()
-    ctx.addPath(path)
+    ctx.addPath(bgPath)
     ctx.clip()
     let cs = CGColorSpace(name: CGColorSpace.sRGB)!
     let top = CGColor(srgbRed: 0.22, green: 0.22, blue: 0.23, alpha: 1)
@@ -95,49 +43,16 @@ func renderIcon(pixelSize px: Int) -> NSBitmapImageRep? {
                            options: [])
     ctx.restoreGState()
 
-    // Wordmark: fit "tvø" to ~72% of artwork width, centered by actual INK bounds
-    // (typographic boxes are optically misleading).
-    var font = brandFont(450 * scale)
-    var line = makeLine("📽️", font)
-    var lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
-    let maxW = artRect.width * 0.80
-    if lineWidth > maxW {
-        let fit = maxW / lineWidth
-        font = brandFont(450 * scale * fit)
-        line = makeLine("📽️", font)
-        lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+    // Draw source image centered, scaled to 50% of art area
+    let drawW = artRect.width * 0.65
+    let drawH = artRect.height * 0.65
+    let drawRect = CGRect(
+        x: artRect.midX - drawW / 2,
+        y: artRect.midY - drawH / 2,
+        width: drawW, height: drawH)
+    if let cgSource = sourceImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+        ctx.draw(cgSource, in: drawRect)
     }
-    let ascent = CTFontGetAscent(font)
-    let descent = CTFontGetDescent(font)
-
-    let pad: CGFloat = 4 * scale
-    let maskW = Int(ceil(lineWidth + pad * 2))
-    let maskH = Int(ceil(ascent + descent + pad * 2))
-    let (maskOpt, ink) = glyphMask(line: line, font: font,
-                                   width: maskW, height: maskH,
-                                   baselineY: descent + pad, originX: pad)
-    guard let mask = maskOpt, !ink.isNull else { return nil }
-
-    // Ink center in bottom-origin coords (scan is top-origin).
-    let inkCx = (ink.minX + ink.maxX) / 2
-    let inkCy = (CGFloat(maskH) - 1) - (ink.minY + ink.maxY) / 2
-
-    // Optically lift lowercase wordmarks ~3px (ink-centered baseline).
-    let targetCx = artRect.midX
-    let targetCy = artRect.midY + artRect.height * 0.004
-
-    let markW = CGFloat(maskW), markH = CGFloat(maskH)
-    let markRect = CGRect(x: targetCx - inkCx,
-                          y: targetCy - inkCy,
-                          width: markW, height: markH)
-
-    ctx.saveGState()
-    ctx.clip(to: markRect, mask: mask)
-
-    // White base
-    ctx.setFillColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 1))
-    ctx.fill(markRect)
-    ctx.restoreGState()
 
     guard let cg = ctx.makeImage() else { return nil }
     return NSBitmapImageRep(cgImage: cg)
