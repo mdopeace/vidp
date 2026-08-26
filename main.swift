@@ -1103,6 +1103,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
         let fileMenuItem = NSMenuItem()
         let fileMenu = NSMenu(title: "File")
         fileMenu.addItem(withTitle: "Open\u{2026}", action: #selector(openDocument), keyEquivalent: "o")
+        fileMenu.addItem(.separator())
+        fileMenu.addItem(withTitle: "Make Default Player\u{2026}", action: #selector(makeDefaultPlayer), keyEquivalent: "")
         fileMenuItem.submenu = fileMenu
         mainMenu.addItem(fileMenuItem)
 
@@ -1200,6 +1202,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
                 self?.open(path: url.path)
             }
         }
+    }
+
+    @objc private func makeDefaultPlayer() {
+        let bundleID = Bundle.main.bundleIdentifier! as CFString
+        let types = [
+            "org.matroska.mkv",
+            "io.iina.mkv",
+            "public.movie",
+            "public.mpeg-4",
+            "com.apple.quicktime-movie",
+            "org.webmproject.webm",
+        ]
+        for uti in types {
+            LSSetDefaultRoleHandlerForContentType(uti as CFString, .all, bundleID)
+        }
+        let alert = NSAlert()
+        alert.messageText = "Default Player Set"
+        alert.informativeText = "WO is now the default player for all supported video types."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     func playerView(_ playerView: PlayerView, didReceiveFile path: String) {
