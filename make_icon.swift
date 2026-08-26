@@ -1,8 +1,8 @@
 import AppKit
 import CoreText
 
-// Generates the WO app icon (dark rounded square, "📽️" wordmark
-// with subtle rainbow tint). Usage: swift make_icon.swift <output-dir>
+// Generates the WO app icon (dark rounded square, "📽️" wordmark).
+// Usage: swift make_icon.swift <output-dir>
 
 let outDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
 let canvas: CGFloat = 1024
@@ -134,25 +134,9 @@ func renderIcon(pixelSize px: Int) -> NSBitmapImageRep? {
     ctx.saveGState()
     ctx.clip(to: markRect, mask: mask)
 
-    // White base…
+    // White base
     ctx.setFillColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 1))
     ctx.fill(markRect)
-    // …with subtle rainbow fringe (purple/pink left, blues right).
-    let tintStops: [(CGFloat, CGColor)] = [
-        (0.00, CGColor(srgbRed: 0.78, green: 0.49, blue: 1.00, alpha: 0.50)),
-        (0.20, CGColor(srgbRed: 1.00, green: 0.54, blue: 0.87, alpha: 0.40)),
-        (0.42, CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.08)),
-        (0.60, CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.08)),
-        (0.80, CGColor(srgbRed: 0.49, green: 0.63, blue: 1.00, alpha: 0.42)),
-        (1.00, CGColor(srgbRed: 0.37, green: 0.43, blue: 1.00, alpha: 0.50)),
-    ]
-    let tintGrad = CGGradient(colorsSpace: cs,
-                              colors: tintStops.map { $0.1 } as CFArray,
-                              locations: tintStops.map { $0.0 })!
-    ctx.drawLinearGradient(tintGrad,
-                           start: CGPoint(x: markRect.minX, y: markRect.midY),
-                           end: CGPoint(x: markRect.maxX, y: markRect.midY),
-                           options: [.drawsBeforeStartLocation])
     ctx.restoreGState()
 
     guard let cg = ctx.makeImage() else { return nil }
