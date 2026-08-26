@@ -1,7 +1,7 @@
 import AppKit
 import CoreText
 
-// Generates the WO app icon (dark rounded square, "wo" wordmark
+// Generates the WO app icon (dark rounded square, "📽️" wordmark
 // with subtle rainbow tint). Usage: swift make_icon.swift <output-dir>
 
 let outDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
@@ -98,13 +98,13 @@ func renderIcon(pixelSize px: Int) -> NSBitmapImageRep? {
     // Wordmark: fit "tvø" to ~72% of artwork width, centered by actual INK bounds
     // (typographic boxes are optically misleading).
     var font = brandFont(450 * scale)
-    var line = makeLine("wo", font)
+    var line = makeLine("📽️", font)
     var lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
     let maxW = artRect.width * 0.80
     if lineWidth > maxW {
         let fit = maxW / lineWidth
         font = brandFont(450 * scale * fit)
-        line = makeLine("wo", font)
+        line = makeLine("📽️", font)
         lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
     }
     let ascent = CTFontGetAscent(font)
