@@ -33,9 +33,8 @@ rm -rf "$ICONSET"
 mkdir -p "$ICONSET"
 cp "$ICON_SRC" "$ICONSET/icon_512x512.png"
 sips -z 1024 1024 "$ICON_SRC" --out "$ICONSET/icon_512x512@2x.png" >/dev/null
-iconutil -c icns "$ICONSET" -o vidp.icns
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/vidp.icns"
 rm -rf "$ICONSET"
-cp vidp.icns "$APP/Contents/Resources/"
 
 # Ad-hoc signing is mandatory on Apple Silicon.
 codesign --force --sign - "$APP"
