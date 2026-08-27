@@ -21,7 +21,7 @@ swiftc -O -swift-version 5 \
     -Xcc -I"$MPV_PREFIX/include" \
     -L "$MPV_PREFIX/lib" \
     -lmpv \
-    main.swift \
+    *.swift \
     -o "$APP/Contents/MacOS/vidp"
 
 cp Info.plist "$APP/Contents/"
