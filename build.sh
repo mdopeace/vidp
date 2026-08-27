@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds WO.app — minimal libmpv-based video player.
+# Builds vidp.app — minimal libmpv-based video player.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -9,7 +9,7 @@ if [ ! -f "$MPV_PREFIX/lib/libmpv.dylib" ]; then
     exit 1
 fi
 
-APP=WO.app
+APP=vidp.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
@@ -22,21 +22,25 @@ swiftc -O -swift-version 5 \
     -L "$MPV_PREFIX/lib" \
     -lmpv \
     main.swift \
-    -o "$APP/Contents/MacOS/WO"
+    -o "$APP/Contents/MacOS/vidp"
 
 cp Info.plist "$APP/Contents/"
-cp WO.icns "$APP/Contents/Resources/"
 
-# Regenerate the icon if the script or icns are missing.
-if [ ! -f WO.icns ]; then
-    swift make_icon.swift "$PWD" && iconutil -c icns AppIcon.iconset -o WO.icns
-    cp WO.icns "$APP/Contents/Resources/"
-fi
+# Build the app icon from the brand asset with no compositing/background.
+ICON_SRC="resources/web/icon-512-maskable.png"
+ICONSET="AppIcon.iconset"
+rm -rf "$ICONSET"
+mkdir -p "$ICONSET"
+cp "$ICON_SRC" "$ICONSET/icon_512x512.png"
+sips -z 1024 1024 "$ICON_SRC" --out "$ICONSET/icon_512x512@2x.png" >/dev/null
+iconutil -c icns "$ICONSET" -o vidp.icns
+rm -rf "$ICONSET"
+cp vidp.icns "$APP/Contents/Resources/"
 
 # Ad-hoc signing is mandatory on Apple Silicon.
 codesign --force --sign - "$APP"
 
-# Register with Launch Services so Finder offers WO in "Open With".
+# Register with Launch Services so Finder offers vidp in "Open With".
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$PWD/$APP" 2>/dev/null
 
 echo "Built $APP"

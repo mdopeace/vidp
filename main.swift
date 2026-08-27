@@ -36,7 +36,7 @@ private func mpvUpdateCallback(_ ctx: UnsafeMutableRawPointer?) {
 }
 
 
-/// Same font the app icon logo is drawn with (see make_icon.swift).
+/// Same font the app icon logo is drawn with (source: resources/web/icon-512-maskable.png).
 private func brandFont(_ size: CGFloat) -> NSFont {
     NSFont(name: "MarkerFelt-Wide", size: size) ?? .systemFont(ofSize: size)
 }
@@ -1043,7 +1043,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
             styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false)
-        window.title = "WO"
+        window.title = "vidp"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isOpaque = false
@@ -1056,7 +1056,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
         visualEffectView.addSubview(playerView)
 
         if let error = playerView.setup() {
-            NSLog("WO setup failed: \(error)")
+            NSLog("vidp setup failed: \(error)")
         }
         playerView.delegate = self
 
@@ -1076,7 +1076,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
         window.center()
         window.makeKeyAndOrderFront(nil)
 
-        // CLI fallback: WO.app/Contents/MacOS/WO <file>
+            // CLI fallback: vidp.app/Contents/MacOS/vidp <file>
         let args = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-") }
         if let first = args.first {
             open(path: first)
@@ -1094,9 +1094,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
 
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About WO", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "About vidp", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit WO", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit vidp", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
         mainMenu.addItem(appMenuItem)
 
@@ -1219,7 +1219,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
         }
         let alert = NSAlert()
         alert.messageText = "Default Player Set"
-        alert.informativeText = "WO is now the default player for all supported video types."
+        alert.informativeText = "vidp is now the default player for all supported video types."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
@@ -1232,7 +1232,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
     private func open(path: String) {
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
-            NSLog("WO: no such file: \(path)")
+            NSLog("vidp: no such file: \(path)")
             return
         }
         savePosition()
@@ -1330,7 +1330,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
             if sleepActivity == nil {
                 sleepActivity = ProcessInfo.processInfo.beginActivity(
                     options: [.idleDisplaySleepDisabled],
-                    reason: "WO playback")
+                    reason: "vidp playback")
             }
         } else if let token = sleepActivity {
             ProcessInfo.processInfo.endActivity(token)
@@ -1339,7 +1339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
     }
 
     func playerDidEncounterError(_ message: String) {
-        NSLog("WO playback error: \(message)")
+        NSLog("vidp playback error: \(message)")
         playerView.showOverlay()
     }
 

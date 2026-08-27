@@ -3,19 +3,19 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>WO</string>
+	<string>vidp</string>
 	<key>CFBundleDisplayName</key>
-	<string>WO</string>
+	<string>vidp</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.vidp.wo</string>
+	<string>com.vidp.vidp</string>
 	<key>CFBundleVersion</key>
 	<string>0.1</string>
 	<key>CFBundleShortVersionString</key>
 	<string>0.1</string>
 	<key>CFBundleExecutable</key>
-	<string>WO</string>
+	<string>vidp</string>
 	<key>CFBundleIconFile</key>
-	<string>WO</string>
+	<string>vidp</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleInfoDictionaryVersion</key>
