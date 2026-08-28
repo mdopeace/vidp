@@ -26,8 +26,20 @@ final class SettingsPopoverView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        layer?.backgroundColor = NSColor(white: 0.12, alpha: 0.92).cgColor
-        layer?.cornerRadius = 12
+        layer?.backgroundColor = NSColor.clear.cgColor
+
+        let blur = NSVisualEffectView()
+        blur.material = .hudWindow
+        blur.state = .active
+        blur.blendingMode = .withinWindow
+        blur.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(blur)
+        NSLayoutConstraint.activate([
+            blur.leadingAnchor.constraint(equalTo: leadingAnchor),
+            blur.trailingAnchor.constraint(equalTo: trailingAnchor),
+            blur.topAnchor.constraint(equalTo: topAnchor),
+            blur.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
 
         let fonts = NSFontManager.shared.availableFontFamilies.sorted()
 

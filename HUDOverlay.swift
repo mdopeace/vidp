@@ -257,6 +257,9 @@ final class HUDOverlayView: NSView {
         let sheet = NSWindow(contentViewController: vc)
         sheet.title = "Settings"
         sheet.styleMask = [.titled, .closable]
+        sheet.isOpaque = false
+        sheet.backgroundColor = .clear
+        sheet.titlebarAppearsTransparent = true
         sheet.isReleasedWhenClosed = false
         window?.beginSheet(sheet)
         settingsSheet = sheet
