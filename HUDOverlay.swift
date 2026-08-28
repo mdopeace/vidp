@@ -45,6 +45,11 @@ final class HUDOverlayView: NSView {
     private var wasPlayingBeforeScrub = false
     private var titleLabel: NSTextField!
     private var smoothTimer: Timer?
+    // mpv_command is a blocking main-thread call; seeking on every mouseMove
+    // stalls the slider's tracking loop, making the knob feel heavy. Coalesce.
+    private let seekMinInterval: TimeInterval = 1.0 / 20.0
+    private var pendingSeek: Double?
+    private var lastSeekAt: TimeInterval = -1
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -281,10 +286,6 @@ final class HUDOverlayView: NSView {
     }
 
     @objc private func settingsDidChange() {
-        titleLabel.font = AppSettings.hudFont(
-            named: AppSettings.hudFontName,
-            size: max(18, 30 * min(1, bounds.width / (window?.screen?.frame.width ?? bounds.width))),
-            bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         needsLayout = true
     }
 
@@ -306,15 +307,19 @@ final class HUDOverlayView: NSView {
         guard let pv = playerView else { return }
         let duration = pv.doubleProperty("duration") ?? 0
         let target = progressBar.doubleValue * duration
-        String(target).withCString { val in
-            "seek".withCString { cmd in
-                "absolute".withCString { flag in
-                    var args: [UnsafePointer<CChar>?] = [cmd, val, flag, nil]
-                    mpv_command(pv.mpv, &args)
-                }
-            }
+        pendingSeek = target
+        let now = ProcessInfo.processInfo.systemUptime
+        if now - lastSeekAt >= seekMinInterval {
+            lastSeekAt = now
+            pendingSeek = nil
+            seekAbsolute(target)
         }
         resetHideTimer()
+    }
+
+    private func seekAbsolute(_ target: Double) {
+        guard target.isFinite else { return }
+        playerView?.seekAbsolute(target)
     }
 
     private func scrubBegan() {
@@ -331,6 +336,10 @@ final class HUDOverlayView: NSView {
     }
 
     private func scrubEnded() {
+        if let target = pendingSeek {
+            pendingSeek = nil
+            seekAbsolute(target)
+        }
         if wasPlayingBeforeScrub {
             playerView?.unpause()
         }

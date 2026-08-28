@@ -165,10 +165,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, NSMenu
             self?.playerView.seek(seconds: -10)
             return .success
         }
-
-        center.changePlaybackPositionCommand.addTarget { _ in
-            return .commandFailed
-        }
     }
 
     // Finder "Open With" sends files here (odoc Apple Event).
@@ -207,12 +203,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, NSMenu
             return hudOverlay.isFileLoaded
         }
         return true
-    }
-
-    func applySubtitleSettings() {
-        if let mpv = playerView?.mpv {
-            AppSettings.applySubtitle(to: mpv)
-        }
     }
 
     @objc private func makeDefaultPlayer() {
@@ -276,14 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, NSMenu
         guard let saved = UserDefaults.standard.object(forKey: key) as? Double else { return }
         // Seek after a brief delay so mpv has time to settle
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            String(saved).withCString { val in
-                "seek".withCString { cmd in
-                    "absolute".withCString { flag in
-                        var args: [UnsafePointer<CChar>?] = [cmd, val, flag, nil]
-                        mpv_command(playerView.mpv, &args)
-                    }
-                }
-            }
+            playerView.seekAbsolute(saved)
         }
     }
 

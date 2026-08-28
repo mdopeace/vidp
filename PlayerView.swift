@@ -45,13 +45,13 @@ final class PlayerView: NSView {
         overlayView.addSubview(iconView)
 
         titleLabel = NSTextField(labelWithString: "Drag & drop a video to play")
-        titleLabel.font = brandFont(20)
+        titleLabel.font = .systemFont(ofSize: 20)
         titleLabel.textColor = NSColor(white: 1, alpha: 0.85)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         overlayView.addSubview(titleLabel)
 
         subtitleLabel = NSTextField(labelWithString: "or press \u{2318}O to browse files")
-        subtitleLabel.font = brandFont(13)
+        subtitleLabel.font = .systemFont(ofSize: 13)
         subtitleLabel.textColor = NSColor(white: 1, alpha: 0.45)
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         overlayView.addSubview(subtitleLabel)
@@ -194,6 +194,18 @@ final class PlayerView: NSView {
         String(seconds).withCString { val in
             "seek".withCString { cmd in
                 "relative".withCString { flag in
+                    var args: [UnsafePointer<CChar>?] = [cmd, val, flag, nil]
+                    mpv_command(mpv, &args)
+                }
+            }
+        }
+    }
+
+    func seekAbsolute(_ seconds: Double) {
+        guard let mpv else { return }
+        String(seconds).withCString { val in
+            "seek".withCString { cmd in
+                "absolute".withCString { flag in
                     var args: [UnsafePointer<CChar>?] = [cmd, val, flag, nil]
                     mpv_command(mpv, &args)
                 }

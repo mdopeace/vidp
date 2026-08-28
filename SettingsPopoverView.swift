@@ -335,43 +335,36 @@ final class SettingsPopoverView: NSView {
     @objc private func subFontChanged() {
         let name = subFontPopup.titleOfSelectedItem ?? "Helvetica"
         AppSettings.setSubFontName(name)
-        applySubtitle()
     }
 
     @objc private func subSizeChanged() {
         let val = subSizeSlider.doubleValue
         subSizeLabel.stringValue = String(Int(val))
         AppSettings.setSubFontSize(val)
-        applySubtitle()
     }
 
     @objc private func subColorChanged() {
         AppSettings.setSubColor(toMPV(subColorWell.color))
-        applySubtitle()
     }
 
     @objc private func subBorderColorChanged() {
         AppSettings.setSubBorderColor(toMPV(subBorderColorWell.color))
-        applySubtitle()
     }
 
     @objc private func subBorderChanged() {
         let val = subBorderSlider.doubleValue
         subBorderLabel.stringValue = String(Int(val))
         AppSettings.setSubBorderSize(val)
-        applySubtitle()
     }
 
     @objc private func subShadowChanged() {
         let val = subShadowSlider.doubleValue
         subShadowLabel.stringValue = String(Int(val))
         AppSettings.setSubShadowOffset(val)
-        applySubtitle()
     }
 
     @objc private func overrideChanged() {
         AppSettings.setSubOverrideASS(overrideCheck.state == .on)
-        applySubtitle()
     }
 
     @objc private func hudFontChanged() {
@@ -388,7 +381,6 @@ final class SettingsPopoverView: NSView {
         let useSystem = subSystemCheck.state == .on
         subFontPopup.isEnabled = !useSystem
         AppSettings.setSubFontName(useSystem ? "" : (subFontPopup.titleOfSelectedItem ?? ""))
-        applySubtitle()
     }
 
     @objc private func hudBoldToggled() {
@@ -401,27 +393,19 @@ final class SettingsPopoverView: NSView {
 
     @objc private func subBoldToggled() {
         AppSettings.setSubBold(subBoldCheck.state == .on)
-        applySubtitle()
     }
 
     @objc private func subItalicToggled() {
         AppSettings.setSubItalic(subItalicCheck.state == .on)
-        applySubtitle()
     }
 
     @objc private func resetTapped() {
         AppSettings.resetAll()
         refreshControls()
-        applySubtitle()
     }
 
     @objc private func doneTapped() {
         onDone?()
-    }
-
-    private func applySubtitle() {
-        guard let appDelegate = NSApp.delegate as? AppDelegate else { return }
-        appDelegate.applySubtitleSettings()
     }
 
     private func refreshControls() {
@@ -451,7 +435,5 @@ final class SettingsPopoverView: NSView {
         subShadowSlider.doubleValue = AppSettings.subShadowOffset
         subShadowLabel.stringValue = String(Int(AppSettings.subShadowOffset))
         overrideCheck.state = AppSettings.subOverrideASS ? .on : .off
-
-        NotificationCenter.default.post(name: .appSettingsDidChange, object: nil)
     }
 }

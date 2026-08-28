@@ -28,8 +28,3 @@ func mpvUpdateCallback(_ ctx: UnsafeMutableRawPointer?) {
     let view = Unmanaged<PlayerView>.fromOpaque(ctx).takeUnretainedValue()
     DispatchQueue.main.async { view.playerLayer?.setNeedsDisplay() }
 }
-
-/// App font — always system to match other macOS apps.
-func brandFont(_ size: CGFloat) -> NSFont {
-    .systemFont(ofSize: size)
-}

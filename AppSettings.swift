@@ -71,13 +71,10 @@ enum AppSettings {
     // MARK: - Reset
     static func resetAll() {
         for key in [K.hudFontName, K.hudBold, K.hudItalic, K.subFontName, K.subBold, K.subItalic,
-                    K.subColor, K.subBorderColor] {
+                    K.subFontSize, K.subColor, K.subBorderColor, K.subBorderSize, K.subShadowOffset,
+                    K.subOverrideASS] {
             d.removeObject(forKey: key)
         }
-        for key in [K.subFontSize, K.subBorderSize, K.subShadowOffset] {
-            d.removeObject(forKey: key)
-        }
-        d.removeObject(forKey: K.subOverrideASS)
         notify()
     }
 
@@ -93,28 +90,30 @@ enum AppSettings {
 
     // MARK: - mpv options (before mpv_initialize)
     static func applyOptions(to mpv: OpaquePointer) {
-        mpv_set_option_string(mpv, "sub-font", subFontName.isEmpty ? "Helvetica Neue" : subFontName)
-        mpv_set_option_string(mpv, "sub-font-size", String(Int(subFontSize)))
-        mpv_set_option_string(mpv, "sub-bold", subBold ? "yes" : "no")
-        mpv_set_option_string(mpv, "sub-italic", subItalic ? "yes" : "no")
-        mpv_set_option_string(mpv, "sub-color", subColor)
-        mpv_set_option_string(mpv, "sub-border-color", subBorderColor)
-        mpv_set_option_string(mpv, "sub-border-size", String(Int(subBorderSize)))
-        mpv_set_option_string(mpv, "sub-shadow-offset", String(Int(subShadowOffset)))
-        mpv_set_option_string(mpv, "sub-ass-override", subOverrideASS ? "force" : "no")
+        for (key, value) in subProps {
+            mpv_set_option_string(mpv, key, value)
+        }
     }
 
     // MARK: - mpv properties (live, after mpv_initialize)
     static func applySubtitle(to mpv: OpaquePointer) {
-        mpv_set_property_string(mpv, "sub-font", subFontName.isEmpty ? "Helvetica Neue" : subFontName)
-        mpv_set_property_string(mpv, "sub-font-size", String(Int(subFontSize)))
-        mpv_set_property_string(mpv, "sub-bold", subBold ? "yes" : "no")
-        mpv_set_property_string(mpv, "sub-italic", subItalic ? "yes" : "no")
-        mpv_set_property_string(mpv, "sub-color", subColor)
-        mpv_set_property_string(mpv, "sub-border-color", subBorderColor)
-        mpv_set_property_string(mpv, "sub-border-size", String(Int(subBorderSize)))
-        mpv_set_property_string(mpv, "sub-shadow-offset", String(Int(subShadowOffset)))
-        mpv_set_property_string(mpv, "sub-ass-override", subOverrideASS ? "force" : "no")
+        for (key, value) in subProps {
+            mpv_set_property_string(mpv, key, value)
+        }
+    }
+
+    private static var subProps: [(String, String)] {
+        [
+            ("sub-font", subFontName.isEmpty ? "Helvetica Neue" : subFontName),
+            ("sub-font-size", String(Int(subFontSize))),
+            ("sub-bold", subBold ? "yes" : "no"),
+            ("sub-italic", subItalic ? "yes" : "no"),
+            ("sub-color", subColor),
+            ("sub-border-color", subBorderColor),
+            ("sub-border-size", String(Int(subBorderSize))),
+            ("sub-shadow-offset", String(Int(subShadowOffset))),
+            ("sub-ass-override", subOverrideASS ? "force" : "no"),
+        ]
     }
 
     private static func notify() {
