@@ -17,17 +17,19 @@ final class HUDOverlayView: NSView {
     private(set) var isFileLoaded: Bool = false
     private let hideDelay: TimeInterval = 3.0
     weak var playerView: PlayerView?
+    private var wasPlayingBeforeSettings = false
 
     private var playGlass: NSGlassEffectView!
     private var rewindGlass: NSGlassEffectView!
     private var forwardGlass: NSGlassEffectView!
+    private var settingsGlass: NSGlassEffectView!
+    private var settingsSheet: NSWindow?
 
     private var elapsedLabel: NSTextField!
     private var remainingLabel: NSTextField!
     private var progressBar: ProgressView!
     private var isScrubbing = false
     private var titleLabel: NSTextField!
-    private var subtitleLabel: NSTextField!
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -55,14 +57,17 @@ final class HUDOverlayView: NSView {
             transportStack.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
 
-        // Top-right: subtitles + audio track pickers
+        // Top-right: subtitles + audio + settings pickers
         let subsGlass = makeTransportButton(
             symbol: "captions.bubble", pointSize: 15, diameter: 40,
             action: #selector(subtitleTapped))
         let audioGlass = makeTransportButton(
             symbol: "speaker.wave.2", pointSize: 15, diameter: 40,
             action: #selector(audioTapped))
-        let topRow = NSStackView(views: [subsGlass, audioGlass])
+        settingsGlass = makeTransportButton(
+            symbol: "gearshape", pointSize: 15, diameter: 40,
+            action: #selector(settingsTapped))
+        let topRow = NSStackView(views: [audioGlass, subsGlass, settingsGlass])
         topRow.spacing = 12
         topRow.alignment = .centerY
         topRow.translatesAutoresizingMaskIntoConstraints = false
@@ -74,7 +79,8 @@ final class HUDOverlayView: NSView {
 
         // Title above progress bar, left-aligned
         titleLabel = NSTextField(labelWithString: "")
-        titleLabel.font = brandFont(30)
+        titleLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: 30,
+                                          bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         titleLabel.textColor = .white
         titleLabel.lineBreakMode = .byWordWrapping
         titleLabel.maximumNumberOfLines = 0
@@ -89,15 +95,7 @@ final class HUDOverlayView: NSView {
         titleLabel.setContentHuggingPriority(.init(1), for: .horizontal)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        subtitleLabel = NSTextField(labelWithString: "")
-        subtitleLabel.font = brandFont(13)
-        subtitleLabel.textColor = NSColor(white: 1, alpha: 0.6)
-        subtitleLabel.setContentCompressionResistancePriority(.init(1), for: .horizontal)
-        subtitleLabel.setContentHuggingPriority(.init(1), for: .horizontal)
-        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-
         addSubview(titleLabel)
-        addSubview(subtitleLabel)
 
         // Bottom progress bar
         let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
@@ -146,8 +144,6 @@ final class HUDOverlayView: NSView {
             titleLabel.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
             titleLabel.bottomAnchor.constraint(equalTo: barRow.topAnchor, constant: -8),
             titleLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.7),
-            subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            subtitleLabel.bottomAnchor.constraint(equalTo: titleLabel.topAnchor, constant: -3),
             progressBar.heightAnchor.constraint(equalToConstant: 18),
             elapsedLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
             remainingLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
@@ -157,6 +153,10 @@ final class HUDOverlayView: NSView {
             rect: .zero,
             options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
             owner: self))
+
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(settingsDidChange),
+            name: .appSettingsDidChange, object: nil)
     }
 
     override func layout() {
@@ -165,7 +165,8 @@ final class HUDOverlayView: NSView {
         // Full 30pt at fullscreen width, scaled down proportionally in windowed mode
         let refWidth = window?.screen?.frame.width ?? bounds.width
         let size = max(18, 30 * min(1, bounds.width / refWidth))
-        titleLabel.font = brandFont(size)
+        titleLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
+                                          bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
     }
 
     @available(*, unavailable)
@@ -238,6 +239,50 @@ final class HUDOverlayView: NSView {
 
     @objc private func audioTapped() {
         showTrackMenu(type: "audio", property: "aid", for: senderView())
+    }
+
+    @objc private func settingsTapped() {
+        if settingsSheet != nil {
+            closeSettings()
+            return
+        }
+        wasPlayingBeforeSettings = !(playerView?.boolProperty("pause") ?? true)
+        if wasPlayingBeforeSettings { playerView?.cyclePause() }
+
+        let settingsView = SettingsPopoverView(frame: NSRect(x: 0, y: 0, width: 400, height: 420))
+        settingsView.onDone = { [weak self] in self?.closeSettings() }
+        let vc = NSViewController()
+        vc.view = settingsView
+
+        let sheet = NSWindow(contentViewController: vc)
+        sheet.title = "Settings"
+        sheet.styleMask = [.titled, .closable]
+        sheet.isReleasedWhenClosed = false
+        window?.beginSheet(sheet)
+        settingsSheet = sheet
+    }
+
+    private func closeSettings() {
+        guard let sheet = settingsSheet, let window else { return }
+        window.endSheet(sheet)
+        settingsSheet = nil
+        if wasPlayingBeforeSettings { playerView?.cyclePause() }
+        wasPlayingBeforeSettings = false
+        resetHideTimer()
+    }
+
+    func showSettingsPopover() {
+        alphaValue = 1
+        startDisplayTimer()
+        settingsTapped()
+    }
+
+    @objc private func settingsDidChange() {
+        titleLabel.font = AppSettings.hudFont(
+            named: AppSettings.hudFontName,
+            size: max(18, 30 * min(1, bounds.width / (window?.screen?.frame.width ?? bounds.width))),
+            bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        needsLayout = true
     }
 
     private func senderView() -> NSView {
@@ -313,6 +358,7 @@ final class HUDOverlayView: NSView {
             ctx.duration = 0.2
             self.animator().alphaValue = 1.0
         }
+        setSubPos(8)
         startDisplayTimer()
     }
 
@@ -321,8 +367,14 @@ final class HUDOverlayView: NSView {
             ctx.duration = 0.2
             self.animator().alphaValue = 0.0
         }
+        setSubPos(100)
         NSCursor.setHiddenUntilMouseMoves(true)
         stopDisplayTimer()
+    }
+
+    private func setSubPos(_ pos: Int) {
+        guard isFileLoaded else { return }
+        playerView?.setProperty("sub-pos", String(pos))
     }
 
     private func startHideTimer() {
@@ -375,10 +427,5 @@ final class HUDOverlayView: NSView {
         titleLabel.stringValue = title
         titleLabel.needsLayout = true
         needsLayout = true
-    }
-
-    func setSubtitle(_ text: String) {
-        subtitleLabel.stringValue = text
-        subtitleLabel.isHidden = text.isEmpty
     }
 }

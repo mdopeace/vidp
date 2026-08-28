@@ -29,7 +29,7 @@ func mpvUpdateCallback(_ ctx: UnsafeMutableRawPointer?) {
     DispatchQueue.main.async { view.playerLayer?.setNeedsDisplay() }
 }
 
-/// Same font the app icon logo is drawn with (source: resources/web/icon-512-maskable.png).
+/// App font — always system to match other macOS apps.
 func brandFont(_ size: CGFloat) -> NSFont {
-    NSFont(name: "MarkerFelt-Wide", size: size) ?? .systemFont(ofSize: size)
+    .systemFont(ofSize: size)
 }

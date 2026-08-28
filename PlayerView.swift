@@ -26,6 +26,10 @@ final class PlayerView: NSView {
 
         setupOverlay()
         registerForDraggedTypes([.fileURL])
+
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(settingsDidChange),
+            name: .appSettingsDidChange, object: nil)
     }
 
     private func setupOverlay() {
@@ -216,6 +220,7 @@ final class PlayerView: NSView {
         mpv_set_option_string(mpv, "hwdec", "videotoolbox")
         mpv_set_option_string(mpv, "keep-open", "always")
         mpv_set_option_string(mpv, "save-position-on-quit", "yes")
+        AppSettings.applyOptions(to: mpv)
 
         guard mpv_initialize(mpv) >= 0 else {
             mpv_destroy(mpv)
@@ -325,6 +330,15 @@ final class PlayerView: NSView {
         return results
     }
 
+    func setProperty(_ name: String, _ value: String) {
+        guard let mpv else { return }
+        name.withCString { n in
+            value.withCString { v in
+                mpv_set_property_string(mpv, n, v)
+            }
+        }
+    }
+
     func setTrack(_ property: String, id: Int) {
         guard let mpv else { return }
         let value = id == 0 ? "no" : "\(id)"
@@ -403,7 +417,13 @@ final class PlayerView: NSView {
         }
     }
 
+    @objc private func settingsDidChange() {
+        guard let mpv else { return }
+        AppSettings.applySubtitle(to: mpv)
+    }
+
     deinit {
+        NotificationCenter.default.removeObserver(self)
         if let renderCtx { mpv_render_context_free(renderCtx) }
         if let mpv { mpv_destroy(mpv) }
     }

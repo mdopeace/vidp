@@ -3,7 +3,7 @@ import MediaPlayer
 import UniformTypeIdentifiers
 import CMPV
 
-final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, NSMenuItemValidation {
     var window: NSWindow!
     private var playerView: PlayerView!
     private var hudOverlay: HUDOverlayView!
@@ -85,6 +85,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: "About vidp", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(.separator())
+        let settingsItem = appMenu.addItem(withTitle: "Settings\u{2026}", action: #selector(showSettings), keyEquivalent: ",")
+        settingsItem.target = self
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit vidp", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
@@ -191,6 +194,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate {
             if response == .OK, let url = panel.url {
                 self?.open(path: url.path)
             }
+        }
+    }
+
+    @objc private func showSettings() {
+        guard hudOverlay.isFileLoaded else { return }
+        hudOverlay.showSettingsPopover()
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(showSettings) {
+            return hudOverlay.isFileLoaded
+        }
+        return true
+    }
+
+    func applySubtitleSettings() {
+        if let mpv = playerView?.mpv {
+            AppSettings.applySubtitle(to: mpv)
         }
     }
 
