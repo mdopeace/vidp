@@ -27,7 +27,7 @@ final class HUDOverlayView: NSView {
 
     private var elapsedLabel: NSTextField!
     private var remainingLabel: NSTextField!
-    private var progressBar: ProgressView!
+    private var progressBar: NSSlider!
     private var isScrubbing = false
     private var titleLabel: NSTextField!
 
@@ -110,26 +110,10 @@ final class HUDOverlayView: NSView {
         remainingLabel.textColor = NSColor(white: 1, alpha: 0.6)
         remainingLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        progressBar = ProgressView(frame: .zero)
+        progressBar = NSSlider(value: 0, minValue: 0, maxValue: 1,
+                               target: self, action: #selector(scrubChanged))
+        progressBar.isContinuous = true
         progressBar.translatesAutoresizingMaskIntoConstraints = false
-        progressBar.onScrub = { [weak self] ratio in
-            guard let self, let pv = self.playerView else { return }
-            self.isScrubbing = true
-            let duration = pv.doubleProperty("duration") ?? 0
-            let target = ratio * duration
-            String(target).withCString { val in
-                "seek".withCString { cmd in
-                    "absolute".withCString { flag in
-                        var args: [UnsafePointer<CChar>?] = [cmd, val, flag, nil]
-                        mpv_command(pv.mpv, &args)
-                    }
-                }
-            }
-            self.resetHideTimer()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                self?.isScrubbing = false
-            }
-        }
 
         let barRow = NSStackView(views: [elapsedLabel, progressBar, remainingLabel])
         barRow.spacing = 10
@@ -144,7 +128,6 @@ final class HUDOverlayView: NSView {
             titleLabel.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
             titleLabel.bottomAnchor.constraint(equalTo: barRow.topAnchor, constant: -8),
             titleLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.7),
-            progressBar.heightAnchor.constraint(equalToConstant: 18),
             elapsedLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
             remainingLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
         ])
@@ -299,11 +282,30 @@ final class HUDOverlayView: NSView {
         resetHideTimer()
     }
 
+    @objc private func scrubChanged() {
+        guard let pv = playerView else { return }
+        isScrubbing = true
+        let duration = pv.doubleProperty("duration") ?? 0
+        let target = progressBar.doubleValue * duration
+        String(target).withCString { val in
+            "seek".withCString { cmd in
+                "absolute".withCString { flag in
+                    var args: [UnsafePointer<CChar>?] = [cmd, val, flag, nil]
+                    mpv_command(pv.mpv, &args)
+                }
+            }
+        }
+        resetHideTimer()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            self?.isScrubbing = false
+        }
+    }
+
     func updateDisplay() {
         guard let pv = playerView, !isScrubbing else { return }
         let pos = pv.doubleProperty("time-pos") ?? 0
         let dur = pv.doubleProperty("duration") ?? 0
-        progressBar.value = dur > 0 ? pos / dur : 0
+        progressBar.doubleValue = dur > 0 ? pos / dur : 0
         elapsedLabel.stringValue = formatTime(pos)
         remainingLabel.stringValue = "-\(formatTime(dur - pos))"
     }
