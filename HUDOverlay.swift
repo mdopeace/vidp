@@ -3,6 +3,19 @@ import CMPV
 
 // MARK: - HUD Overlay
 
+/// Slider that reports when a scrub gesture begins and ends so the HUD can
+/// pause on hold and resume on release.
+final class ScrubSlider: NSSlider {
+    var onBegin: (() -> Void)?
+    var onEnd: (() -> Void)?
+
+    override func mouseDown(with event: NSEvent) {
+        onBegin?()
+        super.mouseDown(with: event)
+        onEnd?()
+    }
+}
+
 final class NudgeUpLabel: NSTextField {
     var yNudge: CGFloat = 1
     override var alignmentRectInsets: NSEdgeInsets {
@@ -29,7 +42,9 @@ final class HUDOverlayView: NSView {
     private var remainingLabel: NSTextField!
     private var progressBar: NSSlider!
     private var isScrubbing = false
+    private var wasPlayingBeforeScrub = false
     private var titleLabel: NSTextField!
+    private var smoothTimer: Timer?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -110,10 +125,12 @@ final class HUDOverlayView: NSView {
         remainingLabel.textColor = NSColor(white: 1, alpha: 0.6)
         remainingLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        progressBar = NSSlider(value: 0, minValue: 0, maxValue: 1,
+        progressBar = ScrubSlider(value: 0, minValue: 0, maxValue: 1,
                                target: self, action: #selector(scrubChanged))
         progressBar.isContinuous = true
         progressBar.translatesAutoresizingMaskIntoConstraints = false
+        (progressBar as? ScrubSlider)?.onBegin = { [weak self] in self?.scrubBegan() }
+        (progressBar as? ScrubSlider)?.onEnd = { [weak self] in self?.scrubEnded() }
 
         let barRow = NSStackView(views: [elapsedLabel, progressBar, remainingLabel])
         barRow.spacing = 10
@@ -284,7 +301,6 @@ final class HUDOverlayView: NSView {
 
     @objc private func scrubChanged() {
         guard let pv = playerView else { return }
-        isScrubbing = true
         let duration = pv.doubleProperty("duration") ?? 0
         let target = progressBar.doubleValue * duration
         String(target).withCString { val in
@@ -296,18 +312,54 @@ final class HUDOverlayView: NSView {
             }
         }
         resetHideTimer()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.isScrubbing = false
+    }
+
+    private func scrubBegan() {
+        guard let pv = playerView else { return }
+        isScrubbing = true
+        // Pause on hold only if currently playing; if already paused, do nothing.
+        wasPlayingBeforeScrub = !(pv.boolProperty("pause") ?? false)
+        if wasPlayingBeforeScrub { pv.cyclePause() }
+        // Sync the slider to the click position immediately so the jump is
+        // instant rather than waiting for the next updateDisplay().
+        let duration = pv.doubleProperty("duration") ?? 0
+        let pos = pv.doubleProperty("time-pos") ?? 0
+        if duration > 0 { progressBar.doubleValue = pos / duration }
+    }
+
+    private func scrubEnded() {
+        if wasPlayingBeforeScrub {
+            playerView?.unpause()
         }
+        wasPlayingBeforeScrub = false
+        isScrubbing = false
     }
 
     func updateDisplay() {
         guard let pv = playerView, !isScrubbing else { return }
         let pos = pv.doubleProperty("time-pos") ?? 0
         let dur = pv.doubleProperty("duration") ?? 0
-        progressBar.doubleValue = dur > 0 ? pos / dur : 0
+        let target = dur > 0 ? pos / dur : 0
         elapsedLabel.stringValue = formatTime(pos)
         remainingLabel.stringValue = "-\(formatTime(dur - pos))"
+
+        // Interpolate the knob toward the target at ~30fps so it glides
+        // smoothly instead of jumping in 250ms steps.
+        if target != progressBar.doubleValue {
+            smoothTimer?.invalidate()
+            smoothTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+                guard let self else { return }
+                let current = self.progressBar.doubleValue
+                let delta = target - current
+                if abs(delta) < 0.0005 {
+                    self.progressBar.doubleValue = target
+                    self.smoothTimer?.invalidate()
+                    self.smoothTimer = nil
+                    return
+                }
+                self.progressBar.doubleValue = current + delta * 0.15
+            }
+        }
     }
 
     private func formatTime(_ seconds: Double) -> String {
@@ -398,6 +450,8 @@ final class HUDOverlayView: NSView {
     private func stopDisplayTimer() {
         displayTimer?.invalidate()
         displayTimer = nil
+        smoothTimer?.invalidate()
+        smoothTimer = nil
     }
 
     func setPaused(_ paused: Bool) {
