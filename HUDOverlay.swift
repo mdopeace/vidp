@@ -41,6 +41,7 @@ final class HUDOverlayView: NSView {
     private var elapsedLabel: NSTextField!
     private var remainingLabel: NSTextField!
     private var progressBar: NSSlider!
+    private var wasHidden = false
     private var isScrubbing = false
     private var wasPlayingBeforeScrub = false
     private var titleLabel: NSTextField!
@@ -355,6 +356,13 @@ final class HUDOverlayView: NSView {
         elapsedLabel.stringValue = formatTime(pos)
         remainingLabel.stringValue = "-\(formatTime(dur - pos))"
 
+        // Coming back from hidden, the knob froze where the HUD faded out;
+        // snap to the real position instead of gliding from the stale value.
+        if wasHidden {
+            progressBar.doubleValue = target
+            wasHidden = false
+            return
+        }
         // Interpolate the knob toward the target at ~30fps so it glides
         // smoothly instead of jumping in 250ms steps.
         if target != progressBar.doubleValue {
@@ -464,6 +472,7 @@ final class HUDOverlayView: NSView {
         displayTimer = nil
         smoothTimer?.invalidate()
         smoothTimer = nil
+        wasHidden = true
     }
 
     func setPaused(_ paused: Bool) {
