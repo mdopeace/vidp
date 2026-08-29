@@ -304,7 +304,6 @@ final class SettingsPopoverView: NSView {
     private func colorWell(hex: String) -> NSColorWell {
         let well = NSColorWell()
         well.color = colorFromMPV(hex)
-        well.isBordered = false
         well.wantsLayer = true
         well.layer?.cornerRadius = 4
         well.translatesAutoresizingMaskIntoConstraints = false
