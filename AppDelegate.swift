@@ -274,6 +274,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, NSMenu
         positionTimer?.invalidate()
         positionTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
             self?.savePosition()
+            self?.updateNowPlayingInfo()
         }
     }
 
@@ -306,16 +307,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, NSMenu
         window.center()
     }
 
+    private func updateNowPlayingInfo() {
+        guard let playerView, let path = currentFilePath else { return }
+        let title = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: title,
+            MPNowPlayingInfoPropertyPlaybackRate: isPaused ? 0.0 : 1.0,
+        ]
+        if let elapsed = playerView.doubleProperty("time-pos") {
+            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed
+        }
+        if let duration = playerView.doubleProperty("duration") {
+            info[MPMediaItemPropertyPlaybackDuration] = duration
+        }
+        let center = MPNowPlayingInfoCenter.default()
+        center.nowPlayingInfo = info
+        center.playbackState = isPaused ? .paused : .playing
+    }
+
     func playerDidUpdatePlaybackState(isPaused: Bool) {
         self.isPaused = isPaused
         hudOverlay.setPaused(isPaused)
         updateSleepActivity(paused: isPaused)
-        let center = MPNowPlayingInfoCenter.default()
-        center.nowPlayingInfo = [
-            MPMediaItemPropertyTitle: window.title,
-            MPNowPlayingInfoPropertyPlaybackRate: isPaused ? 0.0 : 1.0,
-        ]
-        center.playbackState = isPaused ? .paused : .playing
+        updateNowPlayingInfo()
     }
 
     /// Hold a NoDisplaySleepAssertion while playing so macOS doesn't lock/sleep/screensaver.
@@ -380,5 +394,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, NSMenu
         guard let path = currentFilePath else { return }
         hudOverlay.setFileLoaded(true)
         restorePosition(for: path)
+        updateNowPlayingInfo()
     }
 }
