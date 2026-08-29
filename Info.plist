@@ -2,32 +2,55 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleName</key>
-	<string>vidp</string>
 	<key>CFBundleDisplayName</key>
 	<string>vidp</string>
-	<key>CFBundleIdentifier</key>
-	<string>com.vidp.vidp</string>
-	<key>CFBundleVersion</key>
-	<string>0.0.1</string>
-	<key>CFBundleShortVersionString</key>
-	<string>0.0.1</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>mp4</string>
+				<string>m4v</string>
+				<string>mov</string>
+				<string>mkv</string>
+				<string>webm</string>
+				<string>avi</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>Movie</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.movie</string>
+				<string>org.matroska.mkv</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>vidp</string>
 	<key>CFBundleIconFile</key>
 	<string>vidp</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.vidp.vidp</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>vidp</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.0.2</string>
+	<key>CFBundleVersion</key>
+	<string>0.0.2</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict>
@@ -50,29 +73,6 @@
 				<key>public.mime-type</key>
 				<string>video/x-matroska</string>
 			</dict>
-		</dict>
-	</array>
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>Movie</string>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>public.movie</string>
-				<string>org.matroska.mkv</string>
-			</array>
-			<key>CFBundleTypeExtensions</key>
-			<array>
-				<string>mp4</string>
-				<string>m4v</string>
-				<string>mov</string>
-				<string>mkv</string>
-				<string>webm</string>
-				<string>avi</string>
-			</array>
 		</dict>
 	</array>
 </dict>
