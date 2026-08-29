@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-MPV_PREFIX="$(brew --prefix mpv 2>/dev/null || echo /opt/homebrew/opt/mpv)"
+MPV_PREFIX="${MPV_PREFIX:-$(brew --prefix mpv 2>/dev/null || echo /opt/homebrew/opt/mpv)}"
 if [ ! -f "$MPV_PREFIX/lib/libmpv.dylib" ]; then
     echo "error: libmpv not found. Run: brew install mpv" >&2
     exit 1
