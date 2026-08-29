@@ -12,6 +12,12 @@ brew tap mdopeace/vidp
 brew install vidp
 ```
 
+To update to a newer release:
+
+```sh
+brew update && brew upgrade vidp
+```
+
 Then launch:
 
 ```sh
@@ -68,3 +74,10 @@ This project links against [libmpv](https://mpv.io), which remains under its own
 
 - Homebrew tap: [mdopeace/homebrew-vidp](https://github.com/mdopeace/homebrew-vidp)
 - Releases: <https://github.com/mdopeace/vidp/releases>
+
+## Releases
+
+Changes ship to Homebrew users as versioned releases, not per-commit. To cut a
+release, run `./release.sh <version>` (e.g. `./release.sh 0.0.2`), which bumps
+the version, tags the repo, and updates the tap formula. Users then update with
+`brew update && brew upgrade vidp`.
