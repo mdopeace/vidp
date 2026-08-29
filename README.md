@@ -59,7 +59,10 @@ open vidp.app
 
 ## License
 
-See the repository for license details.
+[MIT](LICENSE) © 2026 Md Mostafijur Rahman.
+
+This project links against [libmpv](https://mpv.io), which remains under its own
+[LGPL/GPL license](https://github.com/mpv-player/mpv/blob/master/Copyright).
 
 ## Links
 
