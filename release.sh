@@ -5,11 +5,13 @@
 # run this script (a tagged release) do `brew update && brew upgrade vidp`
 # deliver the change.
 #
+# `main` is branch-protected (no direct pushes), so the version bump goes
+# through a PR which is opened and merged here via the GitHub CLI.
+#
 # Usage:
 #   ./release.sh 0.0.2
 #
-# Bumps the version in Info.plist, bumps the tap formula's url + sha256, then
-# commits, tags, and pushes to both repos.
+# Requires: gh (authenticated), push access to the tap repo.
 set -euo pipefail
 
 V="${1:?usage: release.sh <version> e.g. ./release.sh 0.0.2}"
@@ -27,23 +29,41 @@ fi
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" Info.plist
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $V" Info.plist
 
-# 2. Commit, tag, push the app repo
+# 2. Push the version bump to main via a PR (main is branch-protected)
+BR="release/v$V"
+git checkout -b "$BR"
 git add Info.plist
 git commit -m "Bump version to $V"
-git push origin HEAD
+git push -u origin "$BR"
+gh pr create --base main --head "$BR" --title "Release v$V" \
+    --body "Bumps the version to $V for release." >/dev/null
+gh pr merge --merge --delete-branch
+git checkout main
+git pull --ff-only origin main
+
+# 3. Tag the release (tags are not branch-protected)
 git tag "v$V"
 git push origin "v$V"
 
-# 3. Update the tap formula to point at the new tag + its checksum
+# 4. Update the tap formula to point at the new tag + its checksum
 SRC="https://github.com/$REPO/archive/refs/tags/v$V.tar.gz"
 SHA=$(curl -sL "$SRC" | shasum -a 256 | awk '{print $1}')
-F="$TAP/Formula/vidp.rb"
 
 rm -rf "$TAP"
 git clone "https://github.com/$TAP" "$TAP"
+F="$TAP/Formula/vidp.rb"
 sed -i '' "s#tags/v[0-9.]*\.tar\.gz#tags/v$V.tar.gz#" "$F"
 sed -i '' "s/sha256 \"[0-9a-f]*\"/sha256 \"$SHA\"/" "$F"
-( cd "$TAP" && git add -A && git commit -m "vidp $V" && git push origin HEAD )
+(
+    cd "$TAP"
+    git checkout -b "vidp-v$V"
+    git add -A
+    git commit -m "vidp $V"
+    git push -u origin "vidp-v$V"
+    gh pr create --base main --head "vidp-v$V" --title "vidp $V" \
+        --body "Releases vidp v$V." >/dev/null
+    gh pr merge --merge --delete-branch
+)
 rm -rf "$TAP"
 
 echo "Released v$V. Users can now: brew update && brew upgrade vidp"
