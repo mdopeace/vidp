@@ -80,20 +80,14 @@ final class HUDOverlayView: NSView {
             transportStack.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
 
-        // Top-right: pip + audio + subtitles + settings pickers
+        // Top-right: pip + settings
         let pipGlass = makeTransportButton(
             symbol: "pip.enter", pointSize: 15, diameter: 40,
             action: #selector(pipTapped))
-        let subsGlass = makeTransportButton(
-            symbol: "captions.bubble", pointSize: 15, diameter: 40,
-            action: #selector(subtitleTapped))
-        let audioGlass = makeTransportButton(
-            symbol: "speaker.wave.2", pointSize: 15, diameter: 40,
-            action: #selector(audioTapped))
         settingsGlass = makeTransportButton(
             symbol: "gearshape", pointSize: 15, diameter: 40,
             action: #selector(settingsTapped))
-        let topRow = NSStackView(views: [pipGlass, audioGlass, subsGlass, settingsGlass])
+        let topRow = NSStackView(views: [pipGlass, settingsGlass])
         topRow.spacing = 12
         topRow.alignment = .centerY
         topRow.translatesAutoresizingMaskIntoConstraints = false
@@ -150,18 +144,28 @@ final class HUDOverlayView: NSView {
 
         addSubview(barRow)
 
-        // Fullscreen button — bottom right above progress bar
+        // Bottom right: audio + subtitles + fullscreen above progress bar
+        let audioGlass = makeTransportButton(
+            symbol: "speaker.wave.2", pointSize: 15, diameter: 40,
+            action: #selector(audioTapped))
+        let subsGlass = makeTransportButton(
+            symbol: "captions.bubble", pointSize: 15, diameter: 40,
+            action: #selector(subtitleTapped))
         let fullscreenGlass = makeTransportButton(
             symbol: "arrow.up.left.and.arrow.down.right", pointSize: 15, diameter: 40,
             action: #selector(fullscreenTapped))
-        addSubview(fullscreenGlass)
+        let bottomRightRow = NSStackView(views: [audioGlass, subsGlass, fullscreenGlass])
+        bottomRightRow.spacing = 12
+        bottomRightRow.alignment = .centerY
+        bottomRightRow.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(bottomRightRow)
 
         NSLayoutConstraint.activate([
             barRow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 36),
             barRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -36),
             barRow.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -36),
-            fullscreenGlass.trailingAnchor.constraint(equalTo: barRow.trailingAnchor),
-            fullscreenGlass.bottomAnchor.constraint(equalTo: barRow.topAnchor, constant: -12),
+            bottomRightRow.trailingAnchor.constraint(equalTo: barRow.trailingAnchor),
+            bottomRightRow.bottomAnchor.constraint(equalTo: barRow.topAnchor, constant: -12),
             titleLabel.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
             titleLabel.bottomAnchor.constraint(equalTo: barRow.topAnchor, constant: -8),
             titleLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.7),
