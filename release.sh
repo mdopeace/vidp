@@ -45,7 +45,10 @@ git pull --ff-only origin main
 git tag "v$V"
 git push origin "v$V"
 
-# 4. Update the tap formula to point at the new tag + its checksum
+# 4. Create a GitHub Release with auto-generated notes
+gh release create "v$V" --title "v$V" --generate-notes
+
+# 5. Update the tap formula to point at the new tag + its checksum
 SRC="https://github.com/$REPO/archive/refs/tags/v$V.tar.gz"
 SHA=$(curl -sL "$SRC" | shasum -a 256 | awk '{print $1}')
 
