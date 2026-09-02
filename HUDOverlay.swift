@@ -37,6 +37,8 @@ final class HUDOverlayView: NSView {
     private var forwardGlass: NSGlassEffectView!
     private var settingsGlass: NSGlassEffectView!
     private var settingsSheet: NSWindow?
+    var onPiPToggle: (() -> Void)?
+    var onFullscreenToggle: (() -> Void)?
 
     private var elapsedLabel: NSTextField!
     private var remainingLabel: NSTextField!
@@ -78,7 +80,10 @@ final class HUDOverlayView: NSView {
             transportStack.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
 
-        // Top-right: subtitles + audio + settings pickers
+        // Top-right: pip + audio + subtitles + settings pickers
+        let pipGlass = makeTransportButton(
+            symbol: "pip.enter", pointSize: 15, diameter: 40,
+            action: #selector(pipTapped))
         let subsGlass = makeTransportButton(
             symbol: "captions.bubble", pointSize: 15, diameter: 40,
             action: #selector(subtitleTapped))
@@ -88,7 +93,7 @@ final class HUDOverlayView: NSView {
         settingsGlass = makeTransportButton(
             symbol: "gearshape", pointSize: 15, diameter: 40,
             action: #selector(settingsTapped))
-        let topRow = NSStackView(views: [audioGlass, subsGlass, settingsGlass])
+        let topRow = NSStackView(views: [pipGlass, audioGlass, subsGlass, settingsGlass])
         topRow.spacing = 12
         topRow.alignment = .centerY
         topRow.translatesAutoresizingMaskIntoConstraints = false
@@ -144,10 +149,19 @@ final class HUDOverlayView: NSView {
         barRow.translatesAutoresizingMaskIntoConstraints = false
 
         addSubview(barRow)
+
+        // Fullscreen button — bottom right above progress bar
+        let fullscreenGlass = makeTransportButton(
+            symbol: "arrow.up.left.and.arrow.down.right", pointSize: 15, diameter: 40,
+            action: #selector(fullscreenTapped))
+        addSubview(fullscreenGlass)
+
         NSLayoutConstraint.activate([
             barRow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 36),
             barRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -36),
             barRow.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -36),
+            fullscreenGlass.trailingAnchor.constraint(equalTo: barRow.trailingAnchor),
+            fullscreenGlass.bottomAnchor.constraint(equalTo: barRow.topAnchor, constant: -12),
             titleLabel.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
             titleLabel.bottomAnchor.constraint(equalTo: barRow.topAnchor, constant: -8),
             titleLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.7),
@@ -236,6 +250,16 @@ final class HUDOverlayView: NSView {
             menu.addItem(item)
         }
         NSMenu.popUpContextMenu(menu, with: NSApp.currentEvent ?? NSApplication.shared.currentEvent!, for: button)
+        resetHideTimer()
+    }
+
+    @objc private func pipTapped() {
+        onPiPToggle?()
+        resetHideTimer()
+    }
+
+    @objc private func fullscreenTapped() {
+        onFullscreenToggle?()
         resetHideTimer()
     }
 
