@@ -6,6 +6,7 @@ final class PlayerView: NSView {
     private(set) var renderCtx: OpaquePointer?
     private(set) var playerLayer: PlayerLayer?
     weak var delegate: PlayerDelegate?
+    var onPiPToggle: (() -> Void)?
     private(set) var fileLoaded = false
     private(set) var currentPath: String?
 
@@ -147,6 +148,8 @@ final class PlayerView: NSView {
             switch event.characters {
             case "f":
                 window?.toggleFullScreen(nil)
+            case "p":
+                onPiPToggle?()
             case " ":
                 cyclePause()
             case "l":

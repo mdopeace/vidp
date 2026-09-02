@@ -3,7 +3,7 @@ import MediaPlayer
 import UniformTypeIdentifiers
 import CMPV
 
-final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, NSMenuItemValidation {
+final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPViewControllerDelegate, NSMenuItemValidation {
     var window: NSWindow!
     private var playerView: PlayerView!
     private var hudOverlay: HUDOverlayView!
@@ -13,6 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, NSMenu
     private var pendingFilePath: String?
     private var sleepActivity: NSObjectProtocol?
     private let vidExts: Set<String> = ["mp4", "mkv", "webm", "mov", "m4v", "avi"]
+    private var isPiPActive = false
+    private var pipController: PIPViewController?
+    private var pipVideo: NSViewController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
@@ -49,10 +52,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, NSMenu
             NSLog("vidp setup failed: \(error)")
         }
         playerView.delegate = self
+        playerView.onPiPToggle = { [weak self] in self?.togglePiP() }
 
         hudOverlay = HUDOverlayView(frame: .zero)
         hudOverlay.translatesAutoresizingMaskIntoConstraints = false
         hudOverlay.playerView = playerView
+        hudOverlay.onPiPToggle = { [weak self] in self?.togglePiP() }
+        hudOverlay.onFullscreenToggle = { [weak self] in
+            self?.window.toggleFullScreen(nil)
+        }
         visualEffectView.addSubview(hudOverlay)
         NSLayoutConstraint.activate([
             hudOverlay.leadingAnchor.constraint(equalTo: visualEffectView.leadingAnchor),
@@ -198,6 +206,111 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, NSMenu
         hudOverlay.showSettingsPopover()
     }
 
+    // MARK: - PiP
+
+    func togglePiP() {
+        guard hudOverlay.isFileLoaded else { return }
+        if isPiPActive {
+            exitPiP()
+        } else {
+            enterPiP()
+        }
+    }
+
+    private func enterPiP() {
+        guard !isPiPActive, pipController == nil else { return }
+        isPiPActive = true
+
+        let pip = PIPViewController()
+        pip.delegate = self
+        pip.aspectRatio = playerView.frame.size
+        pip.playing = !isPaused
+        pipController = pip
+
+        let vc = NSViewController()
+        vc.view = playerView
+        pipVideo = vc
+
+        pip.presentAsPicture(inPicture: vc)
+        window.orderOut(nil)
+    }
+
+    private func exitPiP() {
+        guard isPiPActive, let pip = pipController else { return }
+        isPiPActive = false
+
+        if let vc = pipVideo {
+            pip.dismiss(vc)
+        }
+        pipVideo = nil
+        pipController = nil
+
+        // Re-add playerView to main window
+        if let visualEffectView = window.contentView {
+            playerView.translatesAutoresizingMaskIntoConstraints = false
+            visualEffectView.addSubview(playerView)
+            NSLayoutConstraint.activate([
+                playerView.leadingAnchor.constraint(equalTo: visualEffectView.leadingAnchor),
+                playerView.trailingAnchor.constraint(equalTo: visualEffectView.trailingAnchor),
+                playerView.topAnchor.constraint(equalTo: visualEffectView.topAnchor),
+                playerView.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor),
+            ])
+            // HUD must be above playerView to receive mouse events
+            visualEffectView.addSubview(hudOverlay)
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    // MARK: PIPViewControllerDelegate
+
+    func pipWillClose(_ pip: PIPViewController) {
+        pip.replacementWindow = window
+        pip.replacementRect = window.frame
+    }
+
+    func pipDidClose(_ pip: PIPViewController) {
+        isPiPActive = false
+        pipVideo = nil
+        pipController = nil
+
+        if let visualEffectView = window.contentView {
+            playerView.translatesAutoresizingMaskIntoConstraints = false
+            visualEffectView.addSubview(playerView)
+            NSLayoutConstraint.activate([
+                playerView.leadingAnchor.constraint(equalTo: visualEffectView.leadingAnchor),
+                playerView.trailingAnchor.constraint(equalTo: visualEffectView.trailingAnchor),
+                playerView.topAnchor.constraint(equalTo: visualEffectView.topAnchor),
+                playerView.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor),
+            ])
+            visualEffectView.addSubview(hudOverlay)
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    func pipActionPlay(_ pip: PIPViewController) {
+        playerView.unpause()
+    }
+
+    func pipActionPause(_ pip: PIPViewController) {
+        if !isPaused {
+            playerView.cyclePause()
+        }
+    }
+
+    func pipActionStop(_ pip: PIPViewController) {
+        if !isPaused {
+            playerView.cyclePause()
+        }
+    }
+
+    func pipAction(_ pip: PIPViewController, skipInterval interval: TimeInterval) {
+        playerView.seek(seconds: interval)
+    }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(showSettings) {
             return hudOverlay.isFileLoaded
@@ -279,7 +392,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, NSMenu
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        !isPiPActive
     }
 
     func applicationWillTerminate(_ notification: Notification) {

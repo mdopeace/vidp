@@ -16,6 +16,9 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 swiftc -O -swift-version 5 \
     -framework AppKit \
     -framework MediaPlayer \
+    -F/System/Library/PrivateFrameworks \
+    -framework PIP \
+    -import-bridging-header vidp-Bridging-Header.h \
     -I . \
     -Xcc -I"$MPV_PREFIX/include" \
     -L "$MPV_PREFIX/lib" \
