@@ -456,6 +456,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
 
     func playerDidUpdatePlaybackState(isPaused: Bool) {
         self.isPaused = isPaused
+        pipController?.playing = !isPaused
         hudOverlay.setPaused(isPaused)
         updateSleepActivity(paused: isPaused)
         updateNowPlayingInfo()
