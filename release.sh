@@ -9,21 +9,42 @@
 # through a PR which is opened and merged here via the GitHub CLI.
 #
 # Usage:
-#   ./release.sh 0.0.2
+#   ./release.sh
 #
-# Requires: gh (authenticated), push access to the tap repo.
+# Requires: gh (authenticated), gum, push access to the tap repo.
 set -euo pipefail
 
-V="${1:?usage: release.sh <version> e.g. ./release.sh 0.0.2}"
 REPO=mdopeace/vidp            # app repo (origin)
 TAP=mdopeace/homebrew-vidp    # tap repo containing Formula/vidp.rb
 
 cd "$(dirname "$0")"
 
+# Read current version from Info.plist
+CURRENT=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Info.plist)
+IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+NEXT_MAJOR="$((MAJOR + 1)).0.0"
+NEXT_MINOR="$MAJOR.$((MINOR + 1)).0"
+NEXT_PATCH="$MAJOR.$MINOR.$((PATCH + 1))"
+
 if ! git diff --quiet; then
     echo "error: working tree is dirty. Commit your changes first." >&2
     exit 1
 fi
+
+# Version bump selector
+V=$(gum choose --header "Release v$CURRENT — choose bump:" \
+    "$NEXT_PATCH" "$NEXT_MINOR" "$NEXT_MAJOR")
+[[ -n "$V" ]] || { echo "Aborted."; exit 1; }
+
+# Confirmation prompt
+echo "This will release v$V:"
+echo "  - Bump version in Info.plist"
+echo "  - Create & merge PR to main"
+echo "  - Tag v$V"
+echo "  - Create GitHub Release"
+echo "  - Update Homebrew tap"
+read -p "Proceed? [y/N] " answer
+[[ "$answer" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
 
 # 1. Bump version in Info.plist (short + full)
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" Info.plist
