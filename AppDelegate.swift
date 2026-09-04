@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
     private var isPiPActive = false
     private var pipController: PIPViewController?
     private var pipVideo: NSViewController?
+    private var savedWindowSize: NSSize?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
@@ -61,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
         hudOverlay.onFullscreenToggle = { [weak self] in
             self?.window.toggleFullScreen(nil)
         }
+        hudOverlay.onBack = { [weak self] in self?.closeCurrentVideo() }
         visualEffectView.addSubview(hudOverlay)
         NSLayoutConstraint.activate([
             hudOverlay.leadingAnchor.constraint(equalTo: visualEffectView.leadingAnchor),
@@ -350,6 +352,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
             return
         }
         savePosition()
+        savedWindowSize = window.frame.size
         hudOverlay?.setFileLoaded(false)
         let title = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
         hudOverlay?.setTitle(title)
@@ -359,6 +362,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
             self?.currentFilePath = path
             self?.startPositionTimer()
         }
+    }
+
+    private func closeCurrentVideo() {
+        savePosition()
+        positionTimer?.invalidate()
+        playerView.stop()
+        hudOverlay.setFileLoaded(false)
+        currentFilePath = nil
+        if let size = savedWindowSize, !window.styleMask.contains(.fullScreen) {
+            window.setContentSize(size)
+            window.center()
+        }
+        savedWindowSize = nil
     }
 
     private func savePosition() {
