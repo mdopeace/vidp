@@ -42,17 +42,18 @@ COUNT=${#OPTIONS[@]}
 draw_menu() {
     for ((i=0; i<COUNT; i++)); do
         local marker="○"
-        if [[ $i -eq $SELECTED ]]; then marker="◉"; fi
+        if [[ $i -eq $SELECTED ]]; then marker="●"; fi
         if [[ $i -eq $ACTIVE ]]; then
-            printf "\033[2K  %s \033[7m%s %s\033[0m\n" "$marker" "${LABELS[$i]}" "${DESCS[$i]}"
+            printf "\033[2K>%s %s %s\n" "$marker" "${LABELS[$i]}" "${DESCS[$i]}"
         else
-            printf "\033[2K  %s %s %s\n" "$marker" "${LABELS[$i]}" "${DESCS[$i]}"
+            printf "\033[2K %s %s %s\n" "$marker" "${LABELS[$i]}" "${DESCS[$i]}"
         fi
     done
     printf "\033[%dA" "$COUNT"
 }
 
 echo "Release v$CURRENT — choose bump:"
+echo "  ↑/↓ navigate  Space select  Enter confirm"
 echo ""
 draw_menu
 
