@@ -39,21 +39,20 @@ ACTIVE=0
 SELECTED=0
 COUNT=${#OPTIONS[@]}
 
-render_menu() {
-    local idx
+draw_menu() {
     for ((i=0; i<COUNT; i++)); do
-        local prefix="○"
-        if [[ $i -eq $SELECTED ]]; then prefix="◉"; fi
-        local highlight=""
-        if [[ $i -eq $ACTIVE ]]; then highlight=$'\033[7m'; fi
-        printf "\r  ${highlight}%s %s %s\033[0m\n" "$prefix" "${LABELS[$i]}" "${DESCS[$i]}"
+        if [[ $i -eq $ACTIVE ]]; then
+            printf "\033[2K  ◉ %s %s\n" "${LABELS[$i]}" "${DESCS[$i]}"
+        else
+            printf "\033[2K  ○ %s %s\n" "${LABELS[$i]}" "${DESCS[$i]}"
+        fi
     done
-    printf "\r\033[%dA" "$COUNT"
+    printf "\033[%dA" "$COUNT"
 }
 
 echo "Release v$CURRENT — choose bump:"
 echo ""
-render_menu
+draw_menu
 
 trap 'printf "\033[%dE" "$COUNT"; stty echo; exit' INT
 stty -echo
@@ -76,8 +75,7 @@ while true; do
             break
             ;;
     esac
-    printf "\033[%dA" "$COUNT"
-    render_menu
+    draw_menu
 done
 
 # Confirmation prompt
