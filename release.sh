@@ -11,7 +11,7 @@
 # Usage:
 #   ./release.sh
 #
-# Requires: gh (authenticated), push access to the tap repo.
+# Requires: gh (authenticated), gum, push access to the tap repo.
 set -euo pipefail
 
 REPO=mdopeace/vidp            # app repo (origin)
@@ -32,54 +32,9 @@ if ! git diff --quiet; then
 fi
 
 # Version bump selector
-OPTIONS=("$NEXT_PATCH" "$NEXT_MINOR" "$NEXT_MAJOR")
-LABELS=("Patch" "Minor" "Major")
-DESCS=("→ $NEXT_PATCH" "→ $NEXT_MINOR" "→ $NEXT_MAJOR")
-ACTIVE=0
-SELECTED=0
-COUNT=${#OPTIONS[@]}
-
-draw_menu() {
-    for ((i=0; i<COUNT; i++)); do
-        local marker="○"
-        if [[ $i -eq $SELECTED ]]; then marker="●"; fi
-        if [[ $i -eq $ACTIVE ]]; then
-            printf "\033[2K>%s %s %s\n" "$marker" "${LABELS[$i]}" "${DESCS[$i]}"
-        else
-            printf "\033[2K %s %s %s\n" "$marker" "${LABELS[$i]}" "${DESCS[$i]}"
-        fi
-    done
-    printf "\033[%dA" "$COUNT"
-}
-
-echo "Release v$CURRENT — choose bump:"
-echo "  ↑/↓ navigate  Space select  Enter confirm"
-echo ""
-draw_menu
-
-trap 'printf "\033[%dE" "$COUNT"; stty echo; exit' INT
-stty -echo
-
-while true; do
-    read -rsn1 KEY
-    case "$KEY" in
-        $'\x1b')
-            read -rsn2 KEY
-            case "$KEY" in
-                '[A') (( ACTIVE = (ACTIVE - 1 + COUNT) % COUNT )) ;;
-                '[B') (( ACTIVE = (ACTIVE + 1) % COUNT )) ;;
-            esac
-            ;;
-        " "|$'\x20') SELECTED=$ACTIVE ;;
-        "")
-            stty echo
-            printf "\033[%dE" "$COUNT"
-            V="${OPTIONS[$SELECTED]}"
-            break
-            ;;
-    esac
-    draw_menu
-done
+V=$(gum choose --header "Release v$CURRENT — choose bump:" \
+    "$NEXT_PATCH" "$NEXT_MINOR" "$NEXT_MAJOR")
+[[ -n "$V" ]] || { echo "Aborted."; exit 1; }
 
 # Confirmation prompt
 echo "This will release v$V:"
