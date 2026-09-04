@@ -43,8 +43,7 @@ echo "  - Create & merge PR to main"
 echo "  - Tag v$V"
 echo "  - Create GitHub Release"
 echo "  - Update Homebrew tap"
-read -p "Proceed? [y/N] " answer
-[[ "$answer" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
+gum confirm "Proceed?" || { echo "Aborted."; exit 1; }
 
 # 1. Bump version in Info.plist (short + full)
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" Info.plist
@@ -60,7 +59,8 @@ gh pr create --base main --head "$BR" --title "Release v$V" \
     --body "Bumps the version to $V for release." >/dev/null
 gh pr merge --merge --delete-branch
 git checkout main
-git pull --ff-only origin main
+git fetch origin
+git reset --hard origin/main
 
 # 3. Tag the release (tags are not branch-protected)
 git tag "v$V"
