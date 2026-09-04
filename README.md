@@ -46,6 +46,7 @@ open vidp.app
 - macOS 13+ (Apple Silicon or Intel)
 - [libmpv](https://mpv.io) (`brew install mpv`)
 - Xcode Command Line Tools
+- [gum](https://github.com/charmbracelet/gum) for releases (`brew install charmbracelet/tap/gum`)
 
 ## Features
 
@@ -78,6 +79,10 @@ This project links against [libmpv](https://mpv.io), which remains under its own
 ## Releases
 
 Changes ship to Homebrew users as versioned releases, not per-commit. To cut a
-release, run `./release.sh <version>` (e.g. `./release.sh 0.0.2`), which bumps
-the version, tags the repo, and updates the tap formula. Users then update with
-`brew update && brew upgrade vidp`.
+release, run `./release.sh` — it reads the current version from `Info.plist`,
+presents a Patch/Minor/Major selector (via [gum](https://github.com/charmbracelet/gum)),
+and handles the full release flow (bump, PR, tag, GitHub Release, tap update).
+
+Requires: [gh](https://cli.github.com) (authenticated), [gum](https://github.com/charmbracelet/gum) (`brew install charmbracelet/tap/gum`).
+
+Users then update with `brew update && brew upgrade vidp`.
