@@ -17,7 +17,7 @@ set -euo pipefail
 REPO=mdopeace/vidp            # app repo (origin)
 TAP=mdopeace/homebrew-vidp    # tap repo containing Formula/vidp.rb
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 # Read current version from Info.plist
 CURRENT=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Info.plist)

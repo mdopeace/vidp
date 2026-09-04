@@ -37,7 +37,7 @@ and libmpv:
 
 ```sh
 brew install mpv
-./build.sh        # produces ./vidp.app
+./scripts/build.sh        # produces ./vidp.app
 open vidp.app
 ```
 
@@ -79,7 +79,7 @@ This project links against [libmpv](https://mpv.io), which remains under its own
 ## Releases
 
 Changes ship to Homebrew users as versioned releases, not per-commit. To cut a
-release, run `./release.sh` — it reads the current version from `Info.plist`,
+release, run `./scripts/release.sh` — it reads the current version from `Info.plist`,
 presents a Patch/Minor/Major selector (via [gum](https://github.com/charmbracelet/gum)),
 and handles the full release flow (bump, PR, tag, GitHub Release, tap update).
 
