@@ -9,21 +9,86 @@
 # through a PR which is opened and merged here via the GitHub CLI.
 #
 # Usage:
-#   ./release.sh 0.0.2
+#   ./release.sh
 #
 # Requires: gh (authenticated), push access to the tap repo.
 set -euo pipefail
 
-V="${1:?usage: release.sh <version> e.g. ./release.sh 0.0.2}"
 REPO=mdopeace/vidp            # app repo (origin)
 TAP=mdopeace/homebrew-vidp    # tap repo containing Formula/vidp.rb
 
 cd "$(dirname "$0")"
 
+# Read current version from Info.plist
+CURRENT=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Info.plist)
+IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+NEXT_MAJOR="$((MAJOR + 1)).0.0"
+NEXT_MINOR="$MAJOR.$((MINOR + 1)).0"
+NEXT_PATCH="$MAJOR.$MINOR.$((PATCH + 1))"
+
 if ! git diff --quiet; then
     echo "error: working tree is dirty. Commit your changes first." >&2
     exit 1
 fi
+
+# Version bump selector
+OPTIONS=("$NEXT_PATCH" "$NEXT_MINOR" "$NEXT_MAJOR")
+LABELS=("Patch" "Minor" "Major")
+DESCS=("→ $NEXT_PATCH" "→ $NEXT_MINOR" "→ $NEXT_MAJOR")
+ACTIVE=0
+SELECTED=0
+COUNT=${#OPTIONS[@]}
+
+render_menu() {
+    local idx
+    for ((i=0; i<COUNT; i++)); do
+        local prefix="○"
+        if [[ $i -eq $SELECTED ]]; then prefix="◉"; fi
+        local highlight=""
+        if [[ $i -eq $ACTIVE ]]; then highlight=$'\033[7m'; fi
+        printf "\r  ${highlight}%s %s %s\033[0m\n" "$prefix" "${LABELS[$i]}" "${DESCS[$i]}"
+    done
+    printf "\r\033[%dA" "$COUNT"
+}
+
+echo "Release v$CURRENT — choose bump:"
+echo ""
+render_menu
+
+trap 'printf "\033[%dE" "$COUNT"; stty echo; exit' INT
+stty -echo
+
+while true; do
+    read -rsn1 KEY
+    case "$KEY" in
+        $'\x1b')
+            read -rsn2 KEY
+            case "$KEY" in
+                '[A') (( ACTIVE = (ACTIVE - 1 + COUNT) % COUNT )) ;;
+                '[B') (( ACTIVE = (ACTIVE + 1) % COUNT )) ;;
+            esac
+            ;;
+        " ") SELECTED=$ACTIVE ;;
+        "")
+            stty echo
+            printf "\033[%dE" "$COUNT"
+            V="${OPTIONS[$SELECTED]}"
+            break
+            ;;
+    esac
+    printf "\033[%dA" "$COUNT"
+    render_menu
+done
+
+# Confirmation prompt
+echo "This will release v$V:"
+echo "  - Bump version in Info.plist"
+echo "  - Create & merge PR to main"
+echo "  - Tag v$V"
+echo "  - Create GitHub Release"
+echo "  - Update Homebrew tap"
+read -p "Proceed? [y/N] " answer
+[[ "$answer" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
 
 # 1. Bump version in Info.plist (short + full)
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" Info.plist
