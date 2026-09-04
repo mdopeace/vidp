@@ -1,7 +1,7 @@
 #!/bin/bash
 # Builds vidp.app — minimal libmpv-based video player.
 set -euo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 MPV_PREFIX="${MPV_PREFIX:-$(brew --prefix mpv 2>/dev/null || echo /opt/homebrew/opt/mpv)}"
 if [ ! -f "$MPV_PREFIX/lib/libmpv.dylib" ]; then
@@ -23,13 +23,13 @@ swiftc -O -swift-version 5 \
     -Xcc -I"$MPV_PREFIX/include" \
     -L "$MPV_PREFIX/lib" \
     -lmpv \
-    *.swift \
+    Sources/*.swift \
     -o "$APP/Contents/MacOS/vidp"
 
 cp Info.plist "$APP/Contents/"
 
 # Build the app icon from the brand asset with no compositing/background.
-ICON_SRC="resources/web/icon-512-maskable.png"
+ICON_SRC="resources/icon-512-maskable.png"
 ICONSET="AppIcon.iconset"
 rm -rf "$ICONSET"
 mkdir -p "$ICONSET"
