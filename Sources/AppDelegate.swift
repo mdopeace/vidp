@@ -71,7 +71,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
             hudOverlay.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor),
         ])
 
+        // Volume indicator — added to visualEffectView so it's visible even when HUD is hidden
+        let volumeLabel = NSTextField(labelWithString: "")
+        volumeLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: 30,
+                                              bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        volumeLabel.textColor = NSColor(white: 1, alpha: 0.5)
+        volumeLabel.translatesAutoresizingMaskIntoConstraints = false
+        volumeLabel.alphaValue = 0
+        visualEffectView.addSubview(volumeLabel)
+
+        let volumeCenterY = volumeLabel.centerYAnchor.constraint(equalTo: visualEffectView.centerYAnchor)
+        let volumeAboveTransport = volumeLabel.bottomAnchor.constraint(equalTo: hudOverlay.transportStack.topAnchor, constant: -12)
+        NSLayoutConstraint.activate([
+            volumeLabel.centerXAnchor.constraint(equalTo: visualEffectView.centerXAnchor),
+            volumeCenterY,
+        ])
+
+        hudOverlay.volumeLabel = volumeLabel
+        hudOverlay.volumeCenterY = volumeCenterY
+        hudOverlay.volumeAboveTransport = volumeAboveTransport
+
         setupRemoteCommands()
+        restoreVolume()
 
         window.center()
         window.makeKeyAndOrderFront(nil)
@@ -259,6 +280,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
             ])
             // HUD must be above playerView to receive mouse events
             visualEffectView.addSubview(hudOverlay)
+            // Volume label must be above HUD so it's visible
+            if let volumeLabel = hudOverlay.volumeLabel {
+                visualEffectView.addSubview(volumeLabel)
+                volumeLabel.alphaValue = 0
+            }
         }
 
         NSApp.activate(ignoringOtherApps: true)
@@ -287,6 +313,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
                 playerView.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor),
             ])
             visualEffectView.addSubview(hudOverlay)
+            // Volume label must be above HUD so it's visible
+            if let volumeLabel = hudOverlay.volumeLabel {
+                visualEffectView.addSubview(volumeLabel)
+                volumeLabel.alphaValue = 0
+            }
         }
 
         NSApp.activate(ignoringOtherApps: true)
@@ -366,6 +397,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
 
     private func closeCurrentVideo() {
         savePosition()
+        saveVolume()
         positionTimer?.invalidate()
         playerView.stop()
         hudOverlay.setFileLoaded(false)
@@ -407,6 +439,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
         }
     }
 
+    private func saveVolume() {
+        guard let playerView else { return }
+        if let vol = playerView.doubleProperty("volume") {
+            UserDefaults.standard.set(Int(vol), forKey: "volume")
+        }
+    }
+
+    private func restoreVolume() {
+        guard let playerView else { return }
+        let vol = UserDefaults.standard.integer(forKey: "volume")
+        guard vol > 0 else { return }
+        playerView.setProperty("volume", "\(min(100, vol))")
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         !isPiPActive
     }
@@ -414,6 +460,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
     func applicationWillTerminate(_ notification: Notification) {
         positionTimer?.invalidate()
         savePosition()
+        saveVolume()
     }
 
     // MARK: PlayerDelegate
@@ -525,5 +572,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
         hudOverlay.setFileLoaded(true)
         restorePosition(for: path)
         updateNowPlayingInfo()
+    }
+
+    func playerDidAdjustVolume(_ volume: Int) {
+        hudOverlay.showVolumeIndicator(volume)
     }
 }
