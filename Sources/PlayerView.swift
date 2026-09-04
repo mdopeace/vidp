@@ -144,6 +144,10 @@ final class PlayerView: NSView {
             seek(seconds: event.modifierFlags.contains(.shift) ? 30 : 10)
         case 123: // ←
             seek(seconds: event.modifierFlags.contains(.shift) ? -30 : -10)
+        case 126: // ↑
+            adjustVolume(delta: 1)
+        case 125: // ↓
+            adjustVolume(delta: -1)
         default:
             switch event.characters {
             case "f":
@@ -201,6 +205,13 @@ final class PlayerView: NSView {
                 }
             }
         }
+    }
+
+    func adjustVolume(delta: Int) {
+        let current = Int(intProperty("volume") ?? 100)
+        let new = min(100, max(0, current + delta))
+        setProperty("volume", "\(new)")
+        delegate?.playerDidAdjustVolume(new)
     }
 
     func seek(seconds: Double) {

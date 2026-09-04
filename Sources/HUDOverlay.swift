@@ -37,6 +37,7 @@ final class HUDOverlayView: NSView {
     private var forwardGlass: NSGlassEffectView!
     private var settingsGlass: NSGlassEffectView!
     private var settingsSheet: NSWindow?
+    var transportStack: NSStackView!
     var onPiPToggle: (() -> Void)?
     var onFullscreenToggle: (() -> Void)?
     var onBack: (() -> Void)?
@@ -55,6 +56,11 @@ final class HUDOverlayView: NSView {
     private var pendingSeek: Double?
     private var lastSeekAt: TimeInterval = -1
 
+    var volumeLabel: NSTextField!
+    var volumeCenterY: NSLayoutConstraint!
+    var volumeAboveTransport: NSLayoutConstraint!
+    private var volumeHideTimer: Timer?
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         translatesAutoresizingMaskIntoConstraints = false
@@ -70,7 +76,7 @@ final class HUDOverlayView: NSView {
             symbol: "goforward.10", pointSize: 28, diameter: 60,
             action: #selector(forwardTapped))
 
-        let transportStack = NSStackView(views: [rewindGlass, playGlass, forwardGlass])
+        transportStack = NSStackView(views: [rewindGlass, playGlass, forwardGlass])
         transportStack.spacing = 44
         transportStack.alignment = .centerY
         transportStack.translatesAutoresizingMaskIntoConstraints = false
@@ -206,6 +212,8 @@ final class HUDOverlayView: NSView {
         let size = max(18, 30 * min(1, bounds.width / refWidth))
         titleLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
                                           bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        volumeLabel?.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
+                                                bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
     }
 
     @available(*, unavailable)
@@ -478,6 +486,12 @@ final class HUDOverlayView: NSView {
         }
         setSubPos(8)
         startDisplayTimer()
+        // Move volume label above transport if it's currently showing
+        if let volumeLabel, volumeLabel.alphaValue > 0.01 {
+            volumeCenterY?.isActive = false
+            volumeAboveTransport?.isActive = true
+            needsLayout = true
+        }
     }
 
     private func hideHUD() {
@@ -488,6 +502,30 @@ final class HUDOverlayView: NSView {
         setSubPos(100)
         NSCursor.setHiddenUntilMouseMoves(true)
         stopDisplayTimer()
+        // Return volume label to center when HUD hides
+        volumeCenterY?.isActive = true
+        volumeAboveTransport?.isActive = false
+    }
+
+    func showVolumeIndicator(_ volume: Int) {
+        guard let volumeLabel else { return }
+        volumeLabel.stringValue = "Volume \(volume)%"
+        // Position above transport if HUD visible, else center
+        let hudVisible = alphaValue > 0.01
+        volumeCenterY?.isActive = !hudVisible
+        volumeAboveTransport?.isActive = hudVisible
+        needsLayout = true
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.15
+            volumeLabel.animator().alphaValue = 0.5
+        }
+        volumeHideTimer?.invalidate()
+        volumeHideTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { [weak self] _ in
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.3
+                self?.volumeLabel?.animator().alphaValue = 0
+            }
+        }
     }
 
     private func setSubPos(_ pos: Int) {

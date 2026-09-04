@@ -9,6 +9,7 @@ protocol PlayerDelegate: AnyObject {
     func playerDidRequestNext()
     func playerDidRequestPrev()
     func playerView(_ playerView: PlayerView, didReceiveFile path: String)
+    func playerDidAdjustVolume(_ volume: Int)
 }
 
 // C callbacks must be top-level functions.
