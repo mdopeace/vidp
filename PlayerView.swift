@@ -162,6 +162,17 @@ final class PlayerView: NSView {
         }
     }
 
+    func stop() {
+        guard let mpv else { return }
+        "stop".withCString { cmd in
+            var args: [UnsafePointer<CChar>?] = [cmd, nil]
+            mpv_command(mpv, &args)
+        }
+        fileLoaded = false
+        currentPath = nil
+        showOverlay()
+    }
+
     func cyclePause() {
         guard let mpv else { return }
         "cycle".withCString { cmd in

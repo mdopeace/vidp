@@ -39,6 +39,7 @@ final class HUDOverlayView: NSView {
     private var settingsSheet: NSWindow?
     var onPiPToggle: (() -> Void)?
     var onFullscreenToggle: (() -> Void)?
+    var onBack: (() -> Void)?
 
     private var elapsedLabel: NSTextField!
     private var remainingLabel: NSTextField!
@@ -80,6 +81,20 @@ final class HUDOverlayView: NSView {
             transportStack.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
 
+        // Top-left: back button
+        let backGlass = makeTransportButton(
+            symbol: "chevron.left", pointSize: 15, diameter: 40,
+            action: #selector(backTapped))
+        let topLeftRow = NSStackView(views: [backGlass])
+        topLeftRow.spacing = 12
+        topLeftRow.alignment = .centerY
+        topLeftRow.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(topLeftRow)
+        NSLayoutConstraint.activate([
+            topLeftRow.topAnchor.constraint(equalTo: topAnchor, constant: 36),
+            topLeftRow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 36),
+        ])
+
         // Top-right: pip + settings
         let pipGlass = makeTransportButton(
             symbol: "pip.enter", pointSize: 15, diameter: 40,
@@ -93,8 +108,8 @@ final class HUDOverlayView: NSView {
         topRow.translatesAutoresizingMaskIntoConstraints = false
         addSubview(topRow)
         NSLayoutConstraint.activate([
-            topRow.topAnchor.constraint(equalTo: topAnchor, constant: 20),
-            topRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
+            topRow.topAnchor.constraint(equalTo: topAnchor, constant: 36),
+            topRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -36),
         ])
 
         // Title above progress bar, left-aligned
@@ -225,6 +240,7 @@ final class HUDOverlayView: NSView {
     @objc private func rewindTapped() { playerView?.seek(seconds: -10); resetHideTimer() }
     @objc private func playTapped()   { playerView?.cyclePause(); resetHideTimer() }
     @objc private func forwardTapped(){ playerView?.seek(seconds: 10); resetHideTimer() }
+    @objc private func backTapped()   { onBack?(); resetHideTimer() }
 
     private func showTrackMenu(type: String, property: String, for button: NSView) {
         guard let pv = playerView else { return }
