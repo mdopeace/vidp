@@ -108,6 +108,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
             pendingFilePath = nil
             open(path: pending)
         }
+
+        // Silent version check on launch
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.performVersionCheck(showUpToDate: false)
+        }
     }
 
     private func setupMainMenu() {
@@ -116,9 +121,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: "About vidp", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "Check for Updates\u{2026}", action: #selector(checkForUpdates), keyEquivalent: "")
         appMenu.addItem(.separator())
         let settingsItem = appMenu.addItem(withTitle: "Settings\u{2026}", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
+        appMenu.addItem(withTitle: "Remove vidp\u{2026}", action: #selector(uninstallApp), keyEquivalent: "")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit vidp", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
@@ -370,6 +377,114 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
+    }
+
+    // MARK: - Uninstall
+
+    @objc private func uninstallApp() {
+        let alert = NSAlert()
+        alert.messageText = "Remove vidp?"
+        alert.informativeText = "Choose how to remove vidp from your system."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Full Cleanup")
+        alert.addButton(withTitle: "Remove App Only")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        switch response {
+        case .alertFirstButtonReturn:
+            fullCleanup()
+        case .alertSecondButtonReturn:
+            removeAppOnly()
+        default:
+            break
+        }
+    }
+
+    private func removeAppOnly() {
+        let appPath = Bundle.main.bundlePath
+        NSWorkspace.shared.recycle([URL(fileURLWithPath: appPath)]) { _, error in
+            DispatchQueue.main.async {
+                if let error {
+                    NSLog("vidp: failed to remove app: \(error)")
+                    let errAlert = NSAlert()
+                    errAlert.messageText = "Could not remove vidp"
+                    errAlert.informativeText = error.localizedDescription
+                    errAlert.alertStyle = .critical
+                    errAlert.addButton(withTitle: "OK")
+                    errAlert.runModal()
+                } else {
+                    NSApp.terminate(nil)
+                }
+            }
+        }
+    }
+
+    private func fullCleanup() {
+        let appPath = Bundle.main.bundlePath
+        let bundleID = Bundle.main.bundleIdentifier ?? "com.vidp.vidp"
+
+        // Clear all UserDefaults for this app
+        UserDefaults.standard.removePersistentDomain(forName: bundleID)
+
+        // Trash the app bundle
+        NSWorkspace.shared.recycle([URL(fileURLWithPath: appPath)]) { _, error in
+            DispatchQueue.main.async {
+                if let error {
+                    NSLog("vidp: failed to remove app: \(error)")
+                }
+                NSApp.terminate(nil)
+            }
+        }
+    }
+
+    // MARK: - Version Check
+
+    @objc private func checkForUpdates() {
+        performVersionCheck(showUpToDate: true)
+    }
+
+    private func performVersionCheck(showUpToDate: Bool) {
+        guard let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String else { return }
+        let urlString = "https://api.github.com/repos/mdopeace/vidp/releases/latest"
+        guard let url = URL(string: urlString) else { return }
+
+        let task = URLSession.shared.dataTask(with: url) { data, _, error in
+            guard let data, error == nil else { return }
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let tagName = json["tag_name"] as? String else { return }
+
+            let latestVersion = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
+            guard latestVersion != currentVersion else {
+                if showUpToDate {
+                    DispatchQueue.main.async {
+                        let alert = NSAlert()
+                        alert.messageText = "You're up to date"
+                        alert.informativeText = "vidp v\(currentVersion) is the latest version."
+                        alert.alertStyle = .informational
+                        alert.addButton(withTitle: "OK")
+                        alert.runModal()
+                    }
+                }
+                return
+            }
+
+            DispatchQueue.main.async {
+                let alert = NSAlert()
+                alert.messageText = "Update Available"
+                alert.informativeText = "A new version of vidp is available: v\(latestVersion) (you have v\(currentVersion))."
+                alert.alertStyle = .informational
+                alert.addButton(withTitle: "Download")
+                alert.addButton(withTitle: "Later")
+                let response = alert.runModal()
+                if response == .alertFirstButtonReturn {
+                    if let releaseURL = URL(string: "https://github.com/mdopeace/vidp/releases/latest") {
+                        NSWorkspace.shared.open(releaseURL)
+                    }
+                }
+            }
+        }
+        task.resume()
     }
 
     func playerView(_ playerView: PlayerView, didReceiveFile path: String) {
