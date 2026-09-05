@@ -55,6 +55,8 @@ open vidp.app
 - Now-playing integration with macOS MediaPlayer
 - Supports common video formats: mp4, m4v, mov, mkv, webm, avi
 - Reads media from files or the Finder ("Open With")
+- Check for updates via GitHub API (automatic on launch + manual menu item)
+- Uninstall support with full cleanup or app-only removal
 
 ## Notes
 
