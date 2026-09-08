@@ -102,17 +102,20 @@ final class HUDOverlayView: NSView {
             topLeftRow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 36),
         ])
 
-        // Top-right: mute + pip + settings
+        // Top-right: mute + audio + subtitles + pip
         muteGlass = makeTransportButton(
             symbol: "speaker.wave.2", pointSize: 15, diameter: 40,
             action: #selector(muteTapped))
+        let audioGlass = makeTransportButton(
+            symbol: "waveform", pointSize: 15, diameter: 40,
+            action: #selector(audioTapped))
+        let subsGlass = makeTransportButton(
+            symbol: "captions.bubble", pointSize: 15, diameter: 40,
+            action: #selector(subtitleTapped))
         let pipGlass = makeTransportButton(
             symbol: "pip.enter", pointSize: 15, diameter: 40,
             action: #selector(pipTapped))
-        settingsGlass = makeTransportButton(
-            symbol: "gearshape", pointSize: 15, diameter: 40,
-            action: #selector(settingsTapped))
-        let topRow = NSStackView(views: [muteGlass, pipGlass, settingsGlass])
+        let topRow = NSStackView(views: [muteGlass, audioGlass, subsGlass, pipGlass])
         topRow.spacing = 12
         topRow.alignment = .centerY
         topRow.translatesAutoresizingMaskIntoConstraints = false
@@ -169,17 +172,14 @@ final class HUDOverlayView: NSView {
 
         addSubview(barRow)
 
-        // Bottom right: audio + subtitles + fullscreen above progress bar
-        let audioGlass = makeTransportButton(
-            symbol: "waveform", pointSize: 15, diameter: 40,
-            action: #selector(audioTapped))
-        let subsGlass = makeTransportButton(
-            symbol: "captions.bubble", pointSize: 15, diameter: 40,
-            action: #selector(subtitleTapped))
+        // Bottom right: settings + fullscreen above progress bar
+        settingsGlass = makeTransportButton(
+            symbol: "gearshape", pointSize: 15, diameter: 40,
+            action: #selector(settingsTapped))
         let fullscreenGlass = makeTransportButton(
             symbol: "arrow.up.left.and.arrow.down.right", pointSize: 15, diameter: 40,
             action: #selector(fullscreenTapped))
-        let bottomRightRow = NSStackView(views: [audioGlass, subsGlass, fullscreenGlass])
+        let bottomRightRow = NSStackView(views: [settingsGlass, fullscreenGlass])
         bottomRightRow.spacing = 12
         bottomRightRow.alignment = .centerY
         bottomRightRow.translatesAutoresizingMaskIntoConstraints = false
