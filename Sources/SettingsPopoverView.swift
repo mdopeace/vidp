@@ -7,6 +7,8 @@ final class SettingsPopoverView: NSView {
     private var hudSystemCheck: NSButton!
     private var hudBoldCheck: NSButton!
     private var hudItalicCheck: NSButton!
+    private var progressColorWell: NSColorWell!
+    private var progressSystemCheck: NSButton!
     private var subFontPopup: NSPopUpButton!
     private var subSystemCheck: NSButton!
     private var subBoldCheck: NSButton!
@@ -81,6 +83,22 @@ final class SettingsPopoverView: NSView {
         hudBoldCheck = makeStyleCheck("Bold", #selector(hudBoldToggled), AppSettings.hudBold)
         hudItalicCheck = makeStyleCheck("Italic", #selector(hudItalicToggled), AppSettings.hudItalic)
         stack.addArrangedSubview(makeStyleRow(hudBoldCheck, hudItalicCheck))
+
+        // Progress bar fill
+        let progressRow = NSStackView()
+        progressRow.spacing = 8
+        progressRow.alignment = .centerY
+        progressRow.addArrangedSubview(rowLabel("Progress"))
+        progressColorWell = colorWell(hex: AppSettings.progressColor.isEmpty ? "0.28/0.53/1.0/1.0" : AppSettings.progressColor)
+        progressColorWell.target = self
+        progressColorWell.action = #selector(progressColorChanged)
+        progressColorWell.isEnabled = !AppSettings.progressColor.isEmpty
+        progressRow.addArrangedSubview(progressColorWell)
+        progressSystemCheck = NSButton(checkboxWithTitle: "System", target: self, action: #selector(progressSystemToggled))
+        progressSystemCheck.state = AppSettings.progressColor.isEmpty ? .on : .off
+        progressSystemCheck.contentTintColor = NSColor(white: 0.8, alpha: 1)
+        progressRow.addArrangedSubview(progressSystemCheck)
+        stack.addArrangedSubview(makeRow(progressRow))
 
         spacer(stack)
 
@@ -390,6 +408,16 @@ final class SettingsPopoverView: NSView {
         AppSettings.setHudItalic(hudItalicCheck.state == .on)
     }
 
+    @objc private func progressColorChanged() {
+        AppSettings.setProgressColor(toMPV(progressColorWell.color))
+    }
+
+    @objc private func progressSystemToggled() {
+        let useSystem = progressSystemCheck.state == .on
+        progressColorWell.isEnabled = !useSystem
+        AppSettings.setProgressColor(useSystem ? "" : toMPV(progressColorWell.color))
+    }
+
     @objc private func subBoldToggled() {
         AppSettings.setSubBold(subBoldCheck.state == .on)
     }
@@ -417,6 +445,11 @@ final class SettingsPopoverView: NSView {
         if let idx = fonts.firstIndex(of: AppSettings.hudFontName) { hudFontPopup.selectItem(at: idx) }
         hudBoldCheck.state = AppSettings.hudBold ? .on : .off
         hudItalicCheck.state = AppSettings.hudItalic ? .on : .off
+        progressSystemCheck.state = AppSettings.progressColor.isEmpty ? .on : .off
+        progressColorWell.isEnabled = !AppSettings.progressColor.isEmpty
+        if !AppSettings.progressColor.isEmpty {
+            progressColorWell.color = colorFromMPV(AppSettings.progressColor)
+        }
 
         // Sub
         let subSystem = AppSettings.subFontName.isEmpty

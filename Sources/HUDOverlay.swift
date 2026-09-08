@@ -166,6 +166,7 @@ final class HUDOverlayView: NSView {
         progressBar = ScrubSlider(value: 0, minValue: 0, maxValue: 1,
                                target: self, action: #selector(scrubChanged))
         progressBar.isContinuous = true
+        progressBar.trackFillColor = AppSettings.progressNSColor
         progressBar.translatesAutoresizingMaskIntoConstraints = false
         (progressBar as? ScrubSlider)?.onBegin = { [weak self] in self?.scrubBegan() }
         (progressBar as? ScrubSlider)?.onEnd = { [weak self] in self?.scrubEnded() }
@@ -387,6 +388,7 @@ final class HUDOverlayView: NSView {
     }
 
     @objc private func settingsDidChange() {
+        progressBar.trackFillColor = AppSettings.progressNSColor
         needsLayout = true
     }
 
