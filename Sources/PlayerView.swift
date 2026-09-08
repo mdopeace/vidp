@@ -134,6 +134,13 @@ final class PlayerView: NSView {
         }
     }
 
+    // Paused mpv emits no update callbacks, so a resize/fullscreen toggle
+    // would otherwise leave the last IOSurface stretched until play resumes.
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        playerLayer?.setNeedsDisplay()
+    }
+
     override func keyDown(with event: NSEvent) {
         if event.modifierFlags.contains(.command) {
             super.keyDown(with: event)
