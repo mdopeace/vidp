@@ -10,6 +10,7 @@ protocol PlayerDelegate: AnyObject {
     func playerDidRequestPrev()
     func playerView(_ playerView: PlayerView, didReceiveFile path: String)
     func playerDidAdjustVolume(_ volume: Int)
+    func playerDidToggleMute(_ muted: Bool)
 }
 
 // C callbacks must be top-level functions.

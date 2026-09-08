@@ -685,11 +685,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
     func playerDidFileLoad() {
         guard let path = currentFilePath else { return }
         hudOverlay.setFileLoaded(true)
+        hudOverlay.updateMuteIcon(muted: playerView.boolProperty("mute") ?? false)
         restorePosition(for: path)
         updateNowPlayingInfo()
     }
 
     func playerDidAdjustVolume(_ volume: Int) {
+        hudOverlay.updateMuteIcon(muted: playerView.boolProperty("mute") ?? false)
         hudOverlay.showVolumeIndicator(volume)
+    }
+
+    func playerDidToggleMute(_ muted: Bool) {
+        hudOverlay.setMuted(muted)
     }
 }
