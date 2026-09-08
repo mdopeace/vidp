@@ -154,6 +154,8 @@ final class PlayerView: NSView {
                 window?.toggleFullScreen(nil)
             case "p":
                 onPiPToggle?()
+            case "m":
+                toggleMute()
             case " ":
                 cyclePause()
             case "l":
@@ -208,10 +210,25 @@ final class PlayerView: NSView {
     }
 
     func adjustVolume(delta: Int) {
+        if boolProperty("mute") == true {
+            setProperty("mute", "no")
+            delegate?.playerDidToggleMute(false)
+        }
         let current = Int(intProperty("volume") ?? 100)
         let new = min(100, max(0, current + delta))
         setProperty("volume", "\(new)")
         delegate?.playerDidAdjustVolume(new)
+    }
+
+    func toggleMute() {
+        guard let mpv else { return }
+        "cycle".withCString { cmd in
+            "mute".withCString { prop in
+                var args: [UnsafePointer<CChar>?] = [cmd, prop, nil]
+                mpv_command(mpv, &args)
+            }
+        }
+        delegate?.playerDidToggleMute(boolProperty("mute") ?? false)
     }
 
     func seek(seconds: Double) {

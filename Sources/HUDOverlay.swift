@@ -36,6 +36,7 @@ final class HUDOverlayView: NSView {
     private var rewindGlass: NSGlassEffectView!
     private var forwardGlass: NSGlassEffectView!
     private var settingsGlass: NSGlassEffectView!
+    private var muteGlass: NSGlassEffectView!
     private var settingsSheet: NSWindow?
     var transportStack: NSStackView!
     var onPiPToggle: (() -> Void)?
@@ -101,14 +102,17 @@ final class HUDOverlayView: NSView {
             topLeftRow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 36),
         ])
 
-        // Top-right: pip + settings
+        // Top-right: mute + pip + settings
+        muteGlass = makeTransportButton(
+            symbol: "speaker.wave.2", pointSize: 15, diameter: 40,
+            action: #selector(muteTapped))
         let pipGlass = makeTransportButton(
             symbol: "pip.enter", pointSize: 15, diameter: 40,
             action: #selector(pipTapped))
         settingsGlass = makeTransportButton(
             symbol: "gearshape", pointSize: 15, diameter: 40,
             action: #selector(settingsTapped))
-        let topRow = NSStackView(views: [pipGlass, settingsGlass])
+        let topRow = NSStackView(views: [muteGlass, pipGlass, settingsGlass])
         topRow.spacing = 12
         topRow.alignment = .centerY
         topRow.translatesAutoresizingMaskIntoConstraints = false
@@ -167,7 +171,7 @@ final class HUDOverlayView: NSView {
 
         // Bottom right: audio + subtitles + fullscreen above progress bar
         let audioGlass = makeTransportButton(
-            symbol: "speaker.wave.2", pointSize: 15, diameter: 40,
+            symbol: "waveform", pointSize: 15, diameter: 40,
             action: #selector(audioTapped))
         let subsGlass = makeTransportButton(
             symbol: "captions.bubble", pointSize: 15, diameter: 40,
@@ -284,6 +288,45 @@ final class HUDOverlayView: NSView {
     @objc private func pipTapped() {
         onPiPToggle?()
         resetHideTimer()
+    }
+
+    @objc private func muteTapped() {
+        playerView?.toggleMute()
+        resetHideTimer()
+    }
+
+    func updateMuteIcon(muted: Bool) {
+        let name = muted ? "speaker.slash.fill" : "speaker.wave.2"
+        let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+        (muteGlass.contentView as? NSButton)?.image =
+            NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(config)
+    }
+
+    func setMuted(_ muted: Bool) {
+        updateMuteIcon(muted: muted)
+        if muted {
+            guard let volumeLabel else { return }
+            volumeLabel.stringValue = "Muted"
+            let hudVisible = alphaValue > 0.01
+            volumeCenterY?.isActive = !hudVisible
+            volumeAboveTransport?.isActive = hudVisible
+            needsLayout = true
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.15
+                volumeLabel.animator().alphaValue = 0.5
+            }
+            volumeHideTimer?.invalidate()
+            volumeHideTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { [weak self] _ in
+                NSAnimationContext.runAnimationGroup { ctx in
+                    ctx.duration = 0.3
+                    self?.volumeLabel?.animator().alphaValue = 0
+                }
+            }
+        } else {
+            let volume = Int(playerView?.doubleProperty("volume") ?? 100)
+            showVolumeIndicator(volume)
+        }
     }
 
     @objc private func fullscreenTapped() {
