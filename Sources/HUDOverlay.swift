@@ -37,6 +37,8 @@ final class HUDOverlayView: NSView {
     private var forwardGlass: NSGlassEffectView!
     private var settingsGlass: NSGlassEffectView!
     private var muteGlass: NSGlassEffectView!
+    private var audioGlass: NSGlassEffectView!
+    private var subsGlass: NSGlassEffectView!
     private var settingsSheet: NSWindow?
     var transportStack: NSStackView!
     var onPiPToggle: (() -> Void)?
@@ -109,10 +111,10 @@ final class HUDOverlayView: NSView {
         muteGlass = makeTransportButton(
             symbol: "speaker.wave.2", pointSize: 15, diameter: 40,
             action: #selector(muteTapped))
-        let audioGlass = makeTransportButton(
+        audioGlass = makeTransportButton(
             symbol: "waveform", pointSize: 15, diameter: 40,
             action: #selector(audioTapped))
-        let subsGlass = makeTransportButton(
+        subsGlass = makeTransportButton(
             symbol: "captions.bubble", pointSize: 15, diameter: 40,
             action: #selector(subtitleTapped))
         let pipGlass = makeTransportButton(
@@ -334,6 +336,15 @@ final class HUDOverlayView: NSView {
 
     @objc private func audioTapped() {
         showTrackMenu(type: "audio", property: "aid", for: senderView())
+    }
+
+    func refreshTrackButtons() {
+        guard let pv = playerView else { return }
+        let tracks = pv.trackList()
+        let audioCount = tracks.filter { ($0["type"] as? String) == "audio" }.count
+        let subCount = tracks.filter { ($0["type"] as? String) == "sub" }.count
+        audioGlass.isHidden = audioCount <= 1
+        subsGlass.isHidden = subCount == 0
     }
 
     @objc private func settingsTapped() {
@@ -631,6 +642,8 @@ final class HUDOverlayView: NSView {
             hideTimer?.invalidate()
             stopDisplayTimer()
             alphaValue = 0
+            audioGlass.isHidden = true
+            subsGlass.isHidden = true
         }
     }
 
