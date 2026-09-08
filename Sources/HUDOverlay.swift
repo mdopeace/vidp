@@ -58,6 +58,9 @@ final class HUDOverlayView: NSView {
     private var lastSeekAt: TimeInterval = -1
 
     var volumeLabel: NSTextField!
+    var volumeIconView: NSImageView!
+    var volumeStack: NSStackView!
+    private var volumeIconName = "speaker.wave.2"
     var volumeCenterY: NSLayoutConstraint!
     var volumeAboveTransport: NSLayoutConstraint!
     private var volumeHideTimer: Timer?
@@ -218,6 +221,10 @@ final class HUDOverlayView: NSView {
                                           bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         volumeLabel?.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
                                                 bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        let iconConfig = NSImage.SymbolConfiguration(pointSize: size, weight: .semibold)
+        volumeIconView?.image =
+            NSImage(systemSymbolName: volumeIconName, accessibilityDescription: nil)?
+            .withSymbolConfiguration(iconConfig)
     }
 
     @available(*, unavailable)
@@ -306,23 +313,10 @@ final class HUDOverlayView: NSView {
     func setMuted(_ muted: Bool) {
         updateMuteIcon(muted: muted)
         if muted {
-            guard let volumeLabel else { return }
-            volumeLabel.stringValue = "Muted"
-            let hudVisible = alphaValue > 0.01
-            volumeCenterY?.isActive = !hudVisible
-            volumeAboveTransport?.isActive = hudVisible
-            needsLayout = true
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.15
-                volumeLabel.animator().alphaValue = 0.5
-            }
-            volumeHideTimer?.invalidate()
-            volumeHideTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { [weak self] _ in
-                NSAnimationContext.runAnimationGroup { ctx in
-                    ctx.duration = 0.3
-                    self?.volumeLabel?.animator().alphaValue = 0
-                }
-            }
+            guard volumeLabel != nil else { return }
+            setVolumeIcon("speaker.slash.fill")
+            volumeLabel.stringValue = ""
+            presentVolumeOSD()
         } else {
             let volume = Int(playerView?.doubleProperty("volume") ?? 100)
             showVolumeIndicator(volume)
@@ -529,8 +523,9 @@ final class HUDOverlayView: NSView {
         }
         setSubPos(8)
         startDisplayTimer()
-        // Move volume label above transport if it's currently showing
-        if let volumeLabel, volumeLabel.alphaValue > 0.01 {
+        // Move volume indicator above transport if it's currently showing
+        let volumeAlpha = volumeStack?.alphaValue ?? volumeLabel?.alphaValue ?? 0
+        if volumeAlpha > 0.01 {
             volumeCenterY?.isActive = false
             volumeAboveTransport?.isActive = true
             needsLayout = true
@@ -545,14 +540,28 @@ final class HUDOverlayView: NSView {
         setSubPos(100)
         NSCursor.setHiddenUntilMouseMoves(true)
         stopDisplayTimer()
-        // Return volume label to center when HUD hides
+        // Return volume indicator to center when HUD hides
         volumeCenterY?.isActive = true
         volumeAboveTransport?.isActive = false
     }
 
     func showVolumeIndicator(_ volume: Int) {
-        guard let volumeLabel else { return }
-        volumeLabel.stringValue = "Volume \(volume)%"
+        guard volumeLabel != nil else { return }
+        setVolumeIcon("speaker.wave.2")
+        volumeLabel.stringValue = "\(volume)%"
+        presentVolumeOSD()
+    }
+
+    private func setVolumeIcon(_ name: String) {
+        volumeIconName = name
+        let size = volumeLabel?.font?.pointSize ?? 30
+        let config = NSImage.SymbolConfiguration(pointSize: size, weight: .semibold)
+        volumeIconView?.image =
+            NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(config)
+    }
+
+    private func presentVolumeOSD() {
         // Position above transport if HUD visible, else center
         let hudVisible = alphaValue > 0.01
         volumeCenterY?.isActive = !hudVisible
@@ -560,13 +569,13 @@ final class HUDOverlayView: NSView {
         needsLayout = true
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.15
-            volumeLabel.animator().alphaValue = 0.5
+            (volumeStack ?? volumeLabel)?.animator().alphaValue = 0.5
         }
         volumeHideTimer?.invalidate()
         volumeHideTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { [weak self] _ in
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.3
-                self?.volumeLabel?.animator().alphaValue = 0
+                (self?.volumeStack ?? self?.volumeLabel)?.animator().alphaValue = 0
             }
         }
     }

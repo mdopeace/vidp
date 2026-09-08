@@ -72,22 +72,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
         ])
 
         // Volume indicator — added to visualEffectView so it's visible even when HUD is hidden
+        let volumeIconView = NSImageView()
+        volumeIconView.imageScaling = .scaleProportionallyUpOrDown
+        volumeIconView.contentTintColor = NSColor(white: 1, alpha: 0.5)
+        let volumeIconConfig = NSImage.SymbolConfiguration(pointSize: 30, weight: .semibold)
+        volumeIconView.image = NSImage(systemSymbolName: "speaker.wave.2", accessibilityDescription: nil)?
+            .withSymbolConfiguration(volumeIconConfig)
+        volumeIconView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            volumeIconView.widthAnchor.constraint(equalToConstant: 40),
+            volumeIconView.heightAnchor.constraint(equalToConstant: 40),
+        ])
         let volumeLabel = NSTextField(labelWithString: "")
         volumeLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: 30,
                                               bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         volumeLabel.textColor = NSColor(white: 1, alpha: 0.5)
         volumeLabel.translatesAutoresizingMaskIntoConstraints = false
-        volumeLabel.alphaValue = 0
-        visualEffectView.addSubview(volumeLabel)
+        let volumeStack = NSStackView(views: [volumeIconView, volumeLabel])
+        volumeStack.orientation = .horizontal
+        volumeStack.spacing = 10
+        volumeStack.alignment = .centerY
+        volumeStack.translatesAutoresizingMaskIntoConstraints = false
+        volumeStack.alphaValue = 0
+        visualEffectView.addSubview(volumeStack)
 
-        let volumeCenterY = volumeLabel.centerYAnchor.constraint(equalTo: visualEffectView.centerYAnchor)
-        let volumeAboveTransport = volumeLabel.bottomAnchor.constraint(equalTo: hudOverlay.transportStack.topAnchor, constant: -12)
+        let volumeCenterY = volumeStack.centerYAnchor.constraint(equalTo: visualEffectView.centerYAnchor)
+        let volumeAboveTransport = volumeStack.bottomAnchor.constraint(equalTo: hudOverlay.transportStack.topAnchor, constant: -12)
         NSLayoutConstraint.activate([
-            volumeLabel.centerXAnchor.constraint(equalTo: visualEffectView.centerXAnchor),
+            volumeStack.centerXAnchor.constraint(equalTo: visualEffectView.centerXAnchor),
             volumeCenterY,
         ])
 
         hudOverlay.volumeLabel = volumeLabel
+        hudOverlay.volumeIconView = volumeIconView
+        hudOverlay.volumeStack = volumeStack
         hudOverlay.volumeCenterY = volumeCenterY
         hudOverlay.volumeAboveTransport = volumeAboveTransport
 
@@ -287,10 +305,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
             ])
             // HUD must be above playerView to receive mouse events
             visualEffectView.addSubview(hudOverlay)
-            // Volume label must be above HUD so it's visible
-            if let volumeLabel = hudOverlay.volumeLabel {
-                visualEffectView.addSubview(volumeLabel)
-                volumeLabel.alphaValue = 0
+            // Volume indicator must be above HUD so it's visible
+            if let volumeStack = hudOverlay.volumeStack {
+                visualEffectView.addSubview(volumeStack)
+                volumeStack.alphaValue = 0
             }
         }
 
@@ -320,10 +338,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
                 playerView.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor),
             ])
             visualEffectView.addSubview(hudOverlay)
-            // Volume label must be above HUD so it's visible
-            if let volumeLabel = hudOverlay.volumeLabel {
-                visualEffectView.addSubview(volumeLabel)
-                volumeLabel.alphaValue = 0
+            // Volume indicator must be above HUD so it's visible
+            if let volumeStack = hudOverlay.volumeStack {
+                visualEffectView.addSubview(volumeStack)
+                volumeStack.alphaValue = 0
             }
         }
 
