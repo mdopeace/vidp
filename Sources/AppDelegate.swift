@@ -3,7 +3,7 @@ import MediaPlayer
 import UniformTypeIdentifiers
 import CMPV
 
-final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPViewControllerDelegate, NSMenuItemValidation {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, PlayerDelegate, PIPViewControllerDelegate, NSMenuItemValidation {
     var window: NSWindow!
     private var playerView: PlayerView!
     private var hudOverlay: HUDOverlayView!
@@ -43,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
         window.isOpaque = false
         window.backgroundColor = .clear
         window.contentView = visualEffectView
+        window.delegate = self
 
         // Player view on top of the blur
         playerView.frame = visualEffectView.bounds
@@ -516,7 +517,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
             return
         }
         savePosition()
-        savedWindowSize = window.frame.size
+        // Preserve the homepage window size across adjacent plays and
+        // fullscreen opens: only capture it when opening from homepage
+        // while windowed. Overwriting here with a video-sized or
+        // fullscreen frame is what leaked the video size into the homepage.
+        if savedWindowSize == nil, !window.styleMask.contains(.fullScreen) {
+            savedWindowSize = window.frame.size
+        }
         hudOverlay?.setFileLoaded(false)
         let title = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
         hudOverlay?.setTitle(title)
@@ -535,11 +542,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
         playerView.stop()
         hudOverlay.setFileLoaded(false)
         currentFilePath = nil
-        if let size = savedWindowSize, !window.styleMask.contains(.fullScreen) {
+        // Fullscreen: can't resize in place. If the homepage was windowed
+        // (savedWindowSize != nil), exit fullscreen now; windowDidExitFullScreen
+        // restores the homepage size. If homepage was already fullscreen
+        // (savedWindowSize == nil), stay fullscreen.
+        if window.styleMask.contains(.fullScreen) {
+            if savedWindowSize != nil {
+                // Hide the exit transition: AppKit first restores the
+                // pre-fullscreen (video-sized) frame before
+                // windowDidExitFullScreen can apply the homepage size,
+                // which flashes the wrong size.
+                window.alphaValue = 0
+                window.toggleFullScreen(nil)
+            }
+            return
+        }
+        if let size = savedWindowSize {
             window.setContentSize(size)
             window.center()
         }
         savedWindowSize = nil
+    }
+
+    func windowDidExitFullScreen(_ notification: Notification) {
+        // Un-hide regardless of why we exited (alpha is 1 in normal paths).
+        window.alphaValue = 1
+        // Back was hit while fullscreen: restore the deferred homepage size.
+        guard currentFilePath == nil, let size = savedWindowSize else { return }
+        window.setContentSize(size)
+        window.center()
+        savedWindowSize = nil
+    }
+
+    func windowDidFailToExitFullScreen(_ notification: Notification) {
+        // Never leave the window invisible if the exit transition fails.
+        window.alphaValue = 1
     }
 
     private func savePosition() {
@@ -599,6 +636,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, PlayerDelegate, PIPVie
     // MARK: PlayerDelegate
 
     func playerDidUpdateVideoSize(width: Int64, height: Int64) {
+        // Straggler mpv size events after back must never resize the homepage.
+        guard currentFilePath != nil else { return }
         guard width > 0, height > 0, let screen = window.screen ?? NSScreen.main else { return }
         playerView.hideOverlay()
         // In fullscreen the window must keep covering the screen; mpv letterboxes
