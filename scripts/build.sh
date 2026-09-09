@@ -28,13 +28,20 @@ swiftc -O -swift-version 5 \
 
 cp Info.plist "$APP/Contents/"
 
-# Build the app icon from the brand asset with no compositing/background.
-ICON_SRC="resources/icon-512-maskable.png"
+# Build the app icon from the IconKitchen assets (full set, no scaling needed).
 ICONSET="AppIcon.iconset"
 rm -rf "$ICONSET"
 mkdir -p "$ICONSET"
-cp "$ICON_SRC" "$ICONSET/icon_512x512.png"
-sips -z 1024 1024 "$ICON_SRC" --out "$ICONSET/icon_512x512@2x.png" >/dev/null
+cp resources/macos/AppIcon16.png "$ICONSET/icon_16x16.png"
+cp resources/macos/AppIcon32.png "$ICONSET/icon_16x16@2x.png"
+cp resources/macos/AppIcon32.png "$ICONSET/icon_32x32.png"
+cp resources/macos/AppIcon64.png "$ICONSET/icon_32x32@2x.png"
+cp resources/macos/AppIcon128.png "$ICONSET/icon_128x128.png"
+cp resources/macos/AppIcon256.png "$ICONSET/icon_128x128@2x.png"
+cp resources/macos/AppIcon256.png "$ICONSET/icon_256x256.png"
+cp resources/macos/AppIcon512.png "$ICONSET/icon_256x256@2x.png"
+cp resources/macos/AppIcon512.png "$ICONSET/icon_512x512.png"
+cp resources/macos/AppIcon1024.png "$ICONSET/icon_512x512@2x.png"
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/vidp.icns"
 rm -rf "$ICONSET"
 
