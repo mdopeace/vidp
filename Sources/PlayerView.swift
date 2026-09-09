@@ -41,19 +41,19 @@ final class PlayerView: NSView {
         let iconView = NSImageView()
         iconView.translatesAutoresizingMaskIntoConstraints = false
         iconView.image = NSImage(systemSymbolName: "arrow.down.doc", accessibilityDescription: "Drop a video file")
-        iconView.contentTintColor = NSColor(white: 1, alpha: 0.5)
+        iconView.contentTintColor = .secondaryLabelColor
         iconView.imageScaling = .scaleProportionallyUpOrDown
         overlayView.addSubview(iconView)
 
         titleLabel = NSTextField(labelWithString: "Drag & drop a video to play")
         titleLabel.font = .systemFont(ofSize: 20)
-        titleLabel.textColor = NSColor(white: 1, alpha: 0.85)
+        titleLabel.textColor = .labelColor
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         overlayView.addSubview(titleLabel)
 
         subtitleLabel = NSTextField(labelWithString: "or press \u{2318}O to browse files")
         subtitleLabel.font = .systemFont(ofSize: 13)
-        subtitleLabel.textColor = NSColor(white: 1, alpha: 0.45)
+        subtitleLabel.textColor = .secondaryLabelColor
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         overlayView.addSubview(subtitleLabel)
 
@@ -87,7 +87,7 @@ final class PlayerView: NSView {
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.2
                 self.overlayView.animator().wantsLayer = true
-                self.overlayView.animator().layer?.backgroundColor = NSColor(white: 0.15, alpha: 0.6).cgColor
+                self.overlayView.animator().layer?.backgroundColor = NSColor.selectedContentBackgroundColor.withAlphaComponent(0.3).cgColor
                 self.overlayView.animator().layer?.cornerRadius = 16
             }
             return .copy

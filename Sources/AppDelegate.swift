@@ -23,11 +23,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
         playerView = PlayerView(frame: .zero)
 
-        // Translucent blur background
+        // System-standard window background material (Desktop Tinting aware)
         let visualEffectView = NSVisualEffectView()
-        visualEffectView.material = .hudWindow
+        visualEffectView.material = .windowBackground
         visualEffectView.state = .active
-        visualEffectView.blendingMode = .withinWindow
+        visualEffectView.blendingMode = .behindWindow
         visualEffectView.wantsLayer = true
         visualEffectView.autoresizingMask = [.width, .height]
 
