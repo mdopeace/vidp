@@ -49,10 +49,12 @@ gum confirm "Proceed?" || { echo "Aborted."; exit 1; }
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" Info.plist
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $V" Info.plist
 
-# 2. Push the version bump to main via a PR (main is branch-protected)
+# 2. Regenerate the app icon (no-op if the logo PNGs are unchanged) and
+#    push the version bump to main via a PR (main is branch-protected)
 BR="release/v$V"
 git checkout -b "$BR"
-git add Info.plist
+./scripts/make-icns.sh
+git add Info.plist resources/macos/vidp.icns
 git commit -m "Bump version to $V"
 git push -u origin "$BR"
 gh pr create --base main --head "$BR" --title "Release v$V" \
