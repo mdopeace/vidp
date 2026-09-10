@@ -416,10 +416,10 @@ final class PlayerView: NSView {
     private func restoreSavedTracks() {
         guard let path = currentPath else { return }
         let defaults = UserDefaults.standard
-        if let sub = defaults.object(forKey: "sid:\(path)") as? Int {
+        if let sub = (defaults.object(forKey: "sid:\(path)") as? Int) ?? (defaults.object(forKey: "sid:last") as? Int) {
             setTrack("sid", id: sub)
         }
-        if let audio = defaults.object(forKey: "aid:\(path)") as? Int {
+        if let audio = (defaults.object(forKey: "aid:\(path)") as? Int) ?? (defaults.object(forKey: "aid:last") as? Int) {
             setTrack("aid", id: audio)
         }
     }

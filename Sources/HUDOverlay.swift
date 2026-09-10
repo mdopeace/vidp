@@ -419,6 +419,9 @@ final class HUDOverlayView: NSView {
         if let path = playerView?.currentPath {
             UserDefaults.standard.set(sender.tag, forKey: "\(property):\(path)")
         }
+        // Remember last explicit choice so it forwards to the next video,
+        // which has no per-file saved value yet.
+        UserDefaults.standard.set(sender.tag, forKey: "\(property):last")
         resetHideTimer()
     }
 
