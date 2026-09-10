@@ -756,24 +756,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         playAdjacent(offset: -1)
     }
 
+    func playerHasNext() -> Bool {
+        hasAdjacent(offset: 1)
+    }
+
+    /// True if a video `offset` slots away exists in the folder's natural-sorted list.
+    private func hasAdjacent(offset: Int) -> Bool {
+        guard let (files, idx) = adjacentFiles() else { return false }
+        return files.indices.contains(idx + offset)
+    }
+
     /// Plays the video `offset` slots away in the folder's natural-sorted list.
     /// Returns false if there is no adjacent file (folder edges, no file open).
     @discardableResult
     private func playAdjacent(offset: Int) -> Bool {
-        guard let cur = currentFilePath else { return false }
+        guard let (files, idx) = adjacentFiles(),
+              files.indices.contains(idx + offset) else {
+            return false
+        }
+        playerView.unpause()
+        let dir = (currentFilePath! as NSString).deletingLastPathComponent
+        open(path: dir + "/" + files[idx + offset])
+        return true
+    }
+
+    /// Current folder's video files (natural-sorted) plus the open file's index.
+    private func adjacentFiles() -> ([String], Int)? {
+        guard let cur = currentFilePath else { return nil }
         let ns = cur as NSString
         let dir = ns.deletingLastPathComponent
         let files = ((try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? [])
             .filter { vidExts.contains(($0 as NSString).pathExtension.lowercased()) }
             // localizedStandardCompare = Finder-style natural sort (ep2 < ep10)
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-        guard let idx = files.firstIndex(of: ns.lastPathComponent),
-              files.indices.contains(idx + offset) else {
-            return false
-        }
-        playerView.unpause()
-        open(path: dir + "/" + files[idx + offset])
-        return true
+        guard let idx = files.firstIndex(of: ns.lastPathComponent) else { return nil }
+        return (files, idx)
     }
 
     func playerDidFileLoad() {
