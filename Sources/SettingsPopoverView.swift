@@ -222,6 +222,13 @@ final class SettingsPopoverView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        super.viewWillMove(toWindow: newWindow)
+        if newWindow == nil {
+            NSColorPanel.shared.orderOut(nil)
+        }
+    }
+
     // MARK: - Helpers
 
     private func makeLabel(_ text: String, size: CGFloat, weight: NSFont.Weight = .regular,
@@ -320,7 +327,7 @@ final class SettingsPopoverView: NSView {
     }
 
     private func colorWell(hex: String) -> NSColorWell {
-        let well = NSColorWell()
+        let well = PinnedColorWell()
         well.color = colorFromMPV(hex)
         well.wantsLayer = true
         well.layer?.cornerRadius = 4
@@ -467,5 +474,17 @@ final class SettingsPopoverView: NSView {
         subShadowSlider.doubleValue = AppSettings.subShadowOffset
         subShadowLabel.stringValue = String(Int(AppSettings.subShadowOffset))
         overrideCheck.state = AppSettings.subOverrideASS ? .on : .off
+    }
+}
+
+// ponytail: no anchor API for shared NSColorPanel, so pin manually; clamp if off-screen issues appear
+private final class PinnedColorWell: NSColorWell {
+    override func activate(_ exclusive: Bool) {
+        super.activate(exclusive)
+        guard let win = window else { return }
+        let r = win.convertToScreen(convert(bounds, to: nil))
+        DispatchQueue.main.async {
+            NSColorPanel.shared.setFrameOrigin(NSPoint(x: r.maxX + 8, y: r.maxY - NSColorPanel.shared.frame.height))
+        }
     }
 }
