@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     private var pipController: PIPViewController?
     private var pipVideo: NSViewController?
     private var savedWindowSize: NSSize?
+    private var hasShownWindow = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
@@ -53,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         if let error = playerView.setup() {
             NSLog("vidp setup failed: \(error)")
         }
+        let mpvReady = playerView.mpv != nil
         playerView.delegate = self
         playerView.onPiPToggle = { [weak self] in self?.togglePiP() }
 
@@ -113,19 +115,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         setupRemoteCommands()
         restoreVolume()
 
-        window.center()
-        window.makeKeyAndOrderFront(nil)
-
-            // CLI fallback: vidp.app/Contents/MacOS/vidp <file>
-        let args = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-") }
-        if let first = args.first {
-            open(path: first)
-        }
-
-        // Deferred open from "Open With" (fires before finishLaunching)
-        if let pending = pendingFilePath {
+        // Cold-start with a file: keep the window hidden until the first
+        // video-size event so it appears once, directly at video size —
+        // never as a homepage-sized window first.
+        let cliFile = CommandLine.arguments.dropFirst().first(where: { !$0.hasPrefix("-") })
+        // Preserve old precedence: Open-With (pending) won over CLI since it
+        // opened second. Setup failure also skips deferral — load() would
+        // no-op with no size/file/error event to ever show the window.
+        let launchFile = pendingFilePath ?? cliFile
+        if let launchFile, mpvReady {
             pendingFilePath = nil
-            open(path: pending)
+            playerView.hideOverlay()
+            open(path: launchFile)
+        } else {
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            hasShownWindow = true
         }
 
         // Silent version check on launch
@@ -514,6 +519,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
             NSLog("vidp: no such file: \(path)")
+            // Cold-start with a bad path must still show the homepage.
+            if !hasShownWindow {
+                window.center()
+                window.makeKeyAndOrderFront(nil)
+                hasShownWindow = true
+            }
             return
         }
         savePosition()
@@ -527,12 +538,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         hudOverlay?.setFileLoaded(false)
         let title = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
         hudOverlay?.setTitle(title)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-            self?.window.makeKeyAndOrderFront(nil)
-            self?.playerView.load(path: path)
-            self?.currentFilePath = path
-            self?.startPositionTimer()
+        // Hide the homepage overlay synchronously so a cold-start open never
+        // flashes the homepage while mpv decodes the first frame.
+        playerView.hideOverlay()
+        // Deferred cold-start: window stays hidden until the first video-size
+        // event shows it once at video size (see playerDidUpdateVideoSize).
+        if hasShownWindow {
+            window.makeKeyAndOrderFront(nil)
         }
+        currentFilePath = path
+        playerView.load(path: path)
+        startPositionTimer()
     }
 
     private func closeCurrentVideo() {
@@ -653,6 +669,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         }
         window.setContentSize(size)
         window.center()
+        // Deferred cold-start open: appear once, directly at video size.
+        if !hasShownWindow {
+            window.makeKeyAndOrderFront(nil)
+            hasShownWindow = true
+        }
     }
 
     private func updateNowPlayingInfo() {
@@ -698,15 +719,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     func playerDidEncounterError(_ message: String) {
         NSLog("vidp playback error: \(message)")
         playerView.showOverlay()
+        // Never leave a deferred cold-start open invisible.
+        if !hasShownWindow {
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            hasShownWindow = true
+        }
     }
 
     func playerDidEndFile() {
         guard currentFilePath != nil else {
             playerView.showOverlay()
+            if !hasShownWindow {
+                window.center()
+                window.makeKeyAndOrderFront(nil)
+                hasShownWindow = true
+            }
             return
         }
         guard playAdjacent(offset: 1) else {
             playerView.showOverlay()
+            if !hasShownWindow {
+                window.center()
+                window.makeKeyAndOrderFront(nil)
+                hasShownWindow = true
+            }
             return
         }
     }
@@ -746,6 +783,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         hudOverlay.updateMuteIcon(muted: playerView.boolProperty("mute") ?? false)
         restorePosition(for: path)
         updateNowPlayingInfo()
+        // Fallback if width/height events never arrive (audio-only?):
+        // delayed so it can't race the size event and reintroduce the flash.
+        if !hasShownWindow {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                guard let self, !self.hasShownWindow, self.currentFilePath != nil else { return }
+                self.window.center()
+                self.window.makeKeyAndOrderFront(nil)
+                self.hasShownWindow = true
+            }
+        }
     }
 
     func playerDidAdjustVolume(_ volume: Int) {
