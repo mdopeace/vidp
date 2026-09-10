@@ -8,6 +8,7 @@ protocol PlayerDelegate: AnyObject {
     func playerDidFileLoad()
     func playerDidRequestNext()
     func playerDidRequestPrev()
+    func playerHasNext() -> Bool
     func playerView(_ playerView: PlayerView, didReceiveFile path: String)
     func playerDidAdjustVolume(_ volume: Int)
     func playerDidToggleMute(_ muted: Bool)

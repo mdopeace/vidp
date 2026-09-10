@@ -36,6 +36,7 @@ final class HUDOverlayView: NSView {
     private var rewindGlass: NSGlassEffectView!
     private var forwardGlass: NSGlassEffectView!
     private var settingsGlass: NSGlassEffectView!
+    private var nextGlass: NSGlassEffectView!
     private var muteGlass: NSGlassEffectView!
     private var audioGlass: NSGlassEffectView!
     private var subsGlass: NSGlassEffectView!
@@ -178,14 +179,18 @@ final class HUDOverlayView: NSView {
 
         addSubview(barRow)
 
-        // Bottom right: settings + fullscreen above progress bar
+        // Bottom right: next + settings + fullscreen above progress bar
+        nextGlass = makeTransportButton(
+            symbol: "chevron.right.2", pointSize: 15, diameter: 40,
+            action: #selector(nextTapped))
+        nextGlass.isHidden = true
         settingsGlass = makeTransportButton(
             symbol: "gearshape", pointSize: 15, diameter: 40,
             action: #selector(settingsTapped))
         let fullscreenGlass = makeTransportButton(
             symbol: "arrow.up.left.and.arrow.down.right", pointSize: 15, diameter: 40,
             action: #selector(fullscreenTapped))
-        let bottomRightRow = NSStackView(views: [settingsGlass, fullscreenGlass])
+        let bottomRightRow = NSStackView(views: [nextGlass, settingsGlass, fullscreenGlass])
         bottomRightRow.spacing = 12
         bottomRightRow.alignment = .centerY
         bottomRightRow.translatesAutoresizingMaskIntoConstraints = false
@@ -331,6 +336,16 @@ final class HUDOverlayView: NSView {
         resetHideTimer()
     }
 
+    @objc private func nextTapped() {
+        playerView?.nextTrack()
+        refreshNextButton()
+        resetHideTimer()
+    }
+
+    func refreshNextButton() {
+        nextGlass.isHidden = !(playerView?.delegate?.playerHasNext() ?? false)
+    }
+
     @objc private func subtitleTapped() {
         showTrackMenu(type: "sub", property: "sid", for: senderView())
     }
@@ -346,6 +361,7 @@ final class HUDOverlayView: NSView {
         let subCount = tracks.filter { ($0["type"] as? String) == "sub" }.count
         audioGlass.isHidden = audioCount <= 1
         subsGlass.isHidden = subCount == 0
+        refreshNextButton()
     }
 
     @objc private func settingsTapped() {
@@ -646,6 +662,7 @@ final class HUDOverlayView: NSView {
             alphaValue = 0
             audioGlass.isHidden = true
             subsGlass.isHidden = true
+            nextGlass.isHidden = true
         }
     }
 
