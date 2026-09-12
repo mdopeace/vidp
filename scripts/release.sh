@@ -64,12 +64,21 @@ git checkout main
 git fetch origin
 git reset --hard origin/main
 
-# 3. Tag the release (tags are not branch-protected)
+# 3. Build the app archive used by the in-app updater before publishing the
+#    tag, so a packaging failure cannot leave an incomplete release.
+./scripts/build.sh
+ARCHIVE="vidp.app.zip"
+CHECKSUM="$ARCHIVE.sha256"
+trap 'rm -f "$ARCHIVE" "$CHECKSUM"' EXIT
+rm -f "$ARCHIVE"
+ditto -c -k --keepParent vidp.app "$ARCHIVE"
+shasum -a 256 "$ARCHIVE" > "$CHECKSUM"
+
+# 4. Tag the release (tags are not branch-protected) and attach both the app
+#    archive and its checksum to the GitHub Release.
 git tag "v$V"
 git push origin "v$V"
-
-# 4. Create a GitHub Release with auto-generated notes
-gh release create "v$V" --title "v$V" --generate-notes
+gh release create "v$V" --title "v$V" --generate-notes "$ARCHIVE" "$CHECKSUM"
 
 # 5. Update the tap formula to point at the new tag + its checksum
 SRC="https://github.com/$REPO/archive/refs/tags/v$V.tar.gz"

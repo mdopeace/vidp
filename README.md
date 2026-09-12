@@ -24,11 +24,11 @@ Then launch:
 open "$(brew --prefix)/opt/vidp/libexec/vidp.app"
 ```
 
-Or copy it into `/Applications` to use it like any other app:
-
-```sh
-cp -R "$(brew --prefix)/opt/vidp/libexec/vidp.app" /Applications/
-```
+The app's **Check for Updates** command downloads and installs the latest
+release into `/Applications`. If `/Applications` is not writable, the update
+is left unchanged and the app reports the failure. The Homebrew tap will also
+copy the bundle into `/Applications` during install and upgrade once its
+formula hook is updated.
 
 ### from source
 
