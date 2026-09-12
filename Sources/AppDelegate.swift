@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 import MediaPlayer
 import UniformTypeIdentifiers
 import CMPV
@@ -18,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     private var pipVideo: NSViewController?
     private var savedWindowSize: NSSize?
     private var hasShownWindow = false
+    private let applicationPath = URL(fileURLWithPath: "/Applications/vidp.app")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
@@ -502,13 +504,151 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                 alert.addButton(withTitle: "Later")
                 let response = alert.runModal()
                 if response == .alertFirstButtonReturn {
-                    if let releaseURL = URL(string: "https://github.com/mdopeace/vidp/releases/latest") {
-                        NSWorkspace.shared.open(releaseURL)
-                    }
+                    self.downloadAndInstallUpdate(from: json, version: latestVersion)
                 }
             }
         }
         task.resume()
+    }
+
+    private func downloadAndInstallUpdate(from release: [String: Any], version: String) {
+        guard let assets = release["assets"] as? [[String: Any]],
+              let asset = assets.first(where: { $0["name"] as? String == "vidp.app.zip" }),
+              let checksumAsset = assets.first(where: { $0["name"] as? String == "vidp.app.zip.sha256" }),
+              let urlString = asset["browser_download_url"] as? String,
+              let checksumURLString = checksumAsset["browser_download_url"] as? String,
+              let url = URL(string: urlString) else {
+            showUpdateError("This release does not contain a downloadable app archive.")
+            return
+        }
+        guard let checksumURL = URL(string: checksumURLString) else {
+            showUpdateError("This release does not contain a valid app checksum.")
+            return
+        }
+
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("vidp-update-\(UUID().uuidString)", isDirectory: true)
+        let archiveURL = temporaryDirectory.appendingPathComponent("vidp.app.zip")
+        let extractedURL = temporaryDirectory.appendingPathComponent("vidp.app", isDirectory: true)
+
+        do {
+            try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+        } catch {
+            showUpdateError("Could not prepare the update: \(error.localizedDescription)")
+            return
+        }
+
+        URLSession.shared.dataTask(with: checksumURL) { [weak self] checksumData, _, checksumError in
+            guard let self else { return }
+            guard let checksumData, checksumError == nil,
+                  let checksumText = String(data: checksumData, encoding: .utf8),
+                  let expectedChecksum = checksumText.split(whereSeparator: { $0 == " " || $0 == "\n" || $0 == "\r" || $0 == "\t" }).first,
+                  expectedChecksum.count == 64 else {
+                self.finishUpdateFailure(temporaryDirectory, message: "The app checksum could not be downloaded.")
+                return
+            }
+
+            let task = URLSession.shared.downloadTask(with: url) { downloadedURL, _, error in
+                guard let downloadedURL, error == nil else {
+                    self.finishUpdateFailure(temporaryDirectory, message: error?.localizedDescription ?? "The download failed.")
+                    return
+                }
+
+                do {
+                    try FileManager.default.moveItem(at: downloadedURL, to: archiveURL)
+                    try self.verifyChecksum(of: archiveURL, expected: String(expectedChecksum))
+                    try self.extractUpdate(archiveURL: archiveURL, extractedURL: extractedURL)
+                    try self.validateUpdate(at: extractedURL, version: version)
+                    try self.installUpdate(from: extractedURL, temporaryDirectory: temporaryDirectory)
+                } catch {
+                    self.finishUpdateFailure(temporaryDirectory, message: error.localizedDescription)
+                }
+            }
+            task.resume()
+        }
+        .resume()
+    }
+
+    private func verifyChecksum(of archiveURL: URL, expected: String) throws {
+        let data = try Data(contentsOf: archiveURL)
+        let actual = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        guard actual.caseInsensitiveCompare(expected) == .orderedSame else {
+            throw NSError(domain: "vidp.update", code: 4,
+                          userInfo: [NSLocalizedDescriptionKey: "The downloaded app checksum does not match."])
+        }
+    }
+
+    private func extractUpdate(archiveURL: URL, extractedURL: URL) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+        process.arguments = ["-x", "-k", archiveURL.path, extractedURL.deletingLastPathComponent().path]
+        let pipe = Pipe()
+        process.standardError = pipe
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            throw NSError(domain: "vidp.update", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: output.isEmpty ? "The app archive could not be extracted." : output])
+        }
+    }
+
+    private func validateUpdate(at appURL: URL, version: String) throws {
+        guard let bundle = Bundle(url: appURL),
+              bundle.bundleIdentifier == Bundle.main.bundleIdentifier,
+              let executableURL = bundle.executableURL,
+              FileManager.default.isExecutableFile(atPath: executableURL.path),
+              let installedVersion = bundle.infoDictionary?["CFBundleShortVersionString"] as? String,
+              installedVersion == version else {
+            throw NSError(domain: "vidp.update", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "The downloaded app archive is invalid."])
+        }
+    }
+
+    private func installUpdate(from appURL: URL, temporaryDirectory: URL) throws {
+        let fileManager = FileManager.default
+        let backupURL = URL(fileURLWithPath: "/Applications/.vidp.app.previous", isDirectory: true)
+
+        if fileManager.fileExists(atPath: applicationPath.path) {
+            guard let existingBundle = Bundle(url: applicationPath),
+                  existingBundle.bundleIdentifier == Bundle.main.bundleIdentifier else {
+                throw NSError(domain: "vidp.update", code: 3,
+                              userInfo: [NSLocalizedDescriptionKey: "/Applications/vidp.app belongs to another app."])
+            }
+            try fileManager.moveItem(at: applicationPath, to: backupURL)
+        }
+
+        do {
+            try fileManager.moveItem(at: appURL, to: applicationPath)
+        } catch {
+            if fileManager.fileExists(atPath: backupURL.path) {
+                try? fileManager.moveItem(at: backupURL, to: applicationPath)
+            }
+            throw error
+        }
+
+        try? fileManager.removeItem(at: backupURL)
+        try? fileManager.removeItem(at: temporaryDirectory)
+        DispatchQueue.main.async {
+            NSWorkspace.shared.open(self.applicationPath)
+            NSApp.terminate(nil)
+        }
+    }
+
+    private func finishUpdateFailure(_ temporaryDirectory: URL, message: String) {
+        try? FileManager.default.removeItem(at: temporaryDirectory)
+        DispatchQueue.main.async { [weak self] in
+            self?.showUpdateError(message)
+        }
+    }
+
+    private func showUpdateError(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = "Update Failed"
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     func playerView(_ playerView: PlayerView, didReceiveFile path: String) {
