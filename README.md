@@ -24,10 +24,14 @@ Then launch:
 open "$(brew --prefix)/opt/vidp/libexec/vidp.app"
 ```
 
-The app's **Check for Updates** command downloads and installs the latest
-release into `/Applications`. If `/Applications` is not writable, the update
-is left unchanged and the app reports the failure. The Homebrew tap also
-copies the bundle into `/Applications` during install and upgrade.
+To copy it into `/Applications`, replacing the existing `vidp.app` there:
+
+```sh
+cp -R "$(brew --prefix)/opt/vidp/libexec/vidp.app" /Applications/
+```
+
+You can also use the app's **Check for Updates** command to install a release
+into `/Applications`.
 
 ### from source
 
