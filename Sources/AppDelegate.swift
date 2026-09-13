@@ -43,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false)
-        window.title = "vidp"
+        window.title = "Vidp"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isOpaque = false
@@ -159,7 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             img?.isTemplate = true
             return img
         }
-        appMenu.addItem(withTitle: "About vidp", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "About Vidp", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         let updatesItem = appMenu.addItem(withTitle: "Check for Updates\u{2026}", action: #selector(checkForUpdates), keyEquivalent: "")
         updatesItem.target = self
         updatesItem.image = menuIcon("arrow.triangle.2.circlepath")
@@ -170,11 +170,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         let settingsItem = appMenu.addItem(withTitle: "Settings\u{2026}", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
         settingsItem.image = menuIcon("gear")
-        let removeItem = appMenu.addItem(withTitle: "Remove vidp\u{2026}", action: #selector(uninstallApp), keyEquivalent: "")
+        let removeItem = appMenu.addItem(withTitle: "Remove Vidp\u{2026}", action: #selector(uninstallApp), keyEquivalent: "")
         removeItem.target = self
         removeItem.image = menuIcon("trash")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit vidp", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit Vidp", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
         mainMenu.addItem(appMenuItem)
 
@@ -594,7 +594,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         }
         let alert = NSAlert()
         alert.messageText = "Default Player Set"
-        alert.informativeText = "vidp is now the default player for all supported video types."
+        alert.informativeText = "Vidp is now the default player for all supported video types."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
@@ -604,8 +604,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
     @objc private func uninstallApp() {
         let alert = NSAlert()
-        alert.messageText = "Remove vidp?"
-        alert.informativeText = "Choose how to remove vidp from your system."
+        alert.messageText = "Remove Vidp?"
+        alert.informativeText = "Choose how to remove Vidp from your system."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Full Cleanup")
         alert.addButton(withTitle: "Remove App Only")
@@ -629,7 +629,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                 if let error {
                     NSLog("vidp: failed to remove app: \(error)")
                     let errAlert = NSAlert()
-                    errAlert.messageText = "Could not remove vidp"
+                    errAlert.messageText = "Could not remove Vidp"
                     errAlert.informativeText = error.localizedDescription
                     errAlert.alertStyle = .critical
                     errAlert.addButton(withTitle: "OK")
@@ -685,7 +685,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                     DispatchQueue.main.async {
                         let alert = NSAlert()
                         alert.messageText = "You're up to date"
-                        alert.informativeText = "vidp v\(currentVersion) is the latest version."
+                        alert.informativeText = "Vidp v\(currentVersion) is the latest version."
                         alert.alertStyle = .informational
                         alert.addButton(withTitle: "OK")
                         alert.runModal()
@@ -697,7 +697,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             DispatchQueue.main.async {
                 let alert = NSAlert()
                 alert.messageText = "Update Available"
-                alert.informativeText = "A new version of vidp is available: v\(latestVersion) (you have v\(currentVersion))."
+                alert.informativeText = "A new version of Vidp is available: v\(latestVersion) (you have v\(currentVersion))."
                 alert.alertStyle = .informational
                 alert.addButton(withTitle: "Download")
                 alert.addButton(withTitle: "Later")
