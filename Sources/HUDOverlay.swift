@@ -231,9 +231,14 @@ final class HUDOverlayView: NSView {
         // Full 30pt at fullscreen width, scaled down proportionally in windowed mode
         let refWidth = window?.screen?.frame.width ?? bounds.width
         let size = max(18, 30 * min(1, bounds.width / refWidth))
-        let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
-                                       bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
-        applyTitleStyle(font: font)
+        // Re-styling rewrites attributedStringValue, which re-marks the view
+        // as needing layout — so only do it when the size actually changed.
+        // (Text changes go through setTitle, settings through settingsDidChange.)
+        if titleLabel.font?.pointSize != size {
+            let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
+                                           bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+            applyTitleStyle(font: font)
+        }
         volumeLabel?.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size * Self.osdScale,
                                                 bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         let iconConfig = NSImage.SymbolConfiguration(pointSize: size * Self.osdScale, weight: .semibold)
