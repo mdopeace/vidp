@@ -875,8 +875,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             savedWindowSize = window.frame.size
         }
         hudOverlay?.setFileLoaded(false)
-        let title = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
-        hudOverlay?.setTitle(title)
+        let filename = URL(fileURLWithPath: path).lastPathComponent
+        hudOverlay?.setTitle(MediaNameParser.parse(filename: filename).prettyTitle())
         // Hide the homepage overlay synchronously so a cold-start open never
         // flashes the homepage while mpv decodes the first frame.
         playerView.hideOverlay()
@@ -1017,7 +1017,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
     private func updateNowPlayingInfo() {
         guard let playerView, let path = currentFilePath else { return }
-        let title = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+        let title = MediaNameParser.parse(filename: URL(fileURLWithPath: path).lastPathComponent).prettyTitle()
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: title,
             MPNowPlayingInfoPropertyPlaybackRate: isPaused ? 0.0 : 1.0,
