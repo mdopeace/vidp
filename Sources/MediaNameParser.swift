@@ -1,9 +1,6 @@
 import Foundation
 
 struct ParsedMedia {
-    // kind is consumed by the TMDB enrichment branch (movie vs tv search).
-    enum Kind { case movie, tv }
-    let kind: Kind
     let title: String
     let year: Int?
     let season: Int?
@@ -42,7 +39,7 @@ enum MediaNameParser {
     private static let spaces = try! NSRegularExpression(pattern: "\\s{2,}")
     // Strictly technical tags — never edition words (Final Cut, Extended, …).
     private static let codecWords = try! NSRegularExpression(
-        pattern: "(?i)\\b(2160p|1080p|720p|480p|576p|4k|x265|x264|h\\.?264|h\\.?265|hevc|web-?dl|webrip|blu-?ray|brrip|bdrip|dvdrip|hdrip|aac|ac3|ddp|dts|atmos|truehd|multi|proper|repack|rerepack)\\b")
+        pattern: "(?i)\\b(2160p|1080p|720p|480p|576p|4k|hdr(10)?|dolby|x265|x264|h\\.?264|h\\.?265|hevc|web-?dl|webrip|blu-?ray|brrip|bdrip|dvdrip|dvdscr|screener|hdtv|hdrip|aac|ac3|ddp|dts|atmos|truehd|ts|tc|multi|proper|repack|rerepack|10bit|8bit|amzn|nf|dsnp|hulu|yify|rarbg)\\b")
 
     static func parse(filename: String) -> ParsedMedia {
         let base = (filename as NSString).deletingPathExtension
@@ -50,20 +47,20 @@ enum MediaNameParser {
         // TV: Show.S01E02 / Show_s1e2 / Show 1x02 — check before movie year.
         if let m = match(base, sxxexx) {
             let (title, year) = splitYear(m[0])
-            return ParsedMedia(kind: .tv, title: clean(title),
+            return ParsedMedia(title: clean(title),
                                year: year, season: Int(m[1]), episode: Int(m[2]))
         }
         if let m = match(base, nxm) {
             let (title, year) = splitYear(m[0])
-            return ParsedMedia(kind: .tv, title: clean(title),
+            return ParsedMedia(title: clean(title),
                                year: year, season: Int(m[1]), episode: Int(m[2]))
         }
         // Movie: Title.2024 / Title (2009) / Title [2024]
         if let m = match(base, yearPat) {
-            return ParsedMedia(kind: .movie, title: clean(m[0]),
+            return ParsedMedia(title: clean(m[0]),
                                year: Int(m[1]), season: nil, episode: nil)
         }
-        return ParsedMedia(kind: .movie, title: clean(base),
+        return ParsedMedia(title: clean(base),
                            year: nil, season: nil, episode: nil)
     }
 

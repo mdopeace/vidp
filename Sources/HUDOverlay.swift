@@ -56,6 +56,7 @@ final class HUDOverlayView: NSView {
     private var wasPlayingBeforeScrub = false
     private var titleLabel: NSTextField!
     private var metaLabel: NSTextField!
+    private var metaBottom: NSLayoutConstraint!
     private var smoothTimer: Timer?
     // mpv_command is a blocking main-thread call; seeking on every mouseMove
     // stalls the slider's tracking loop, making the knob feel heavy. Coalesce.
@@ -171,6 +172,7 @@ final class HUDOverlayView: NSView {
         metaLabel.textColor = NSColor(white: 1, alpha: 0.5)
         metaLabel.lineBreakMode = .byTruncatingTail
         metaLabel.translatesAutoresizingMaskIntoConstraints = false
+        metaLabel.isHidden = true
         addSubview(metaLabel)
 
         // Bottom progress bar
@@ -228,10 +230,15 @@ final class HUDOverlayView: NSView {
             titleLabel.bottomAnchor.constraint(equalTo: barRow.topAnchor, constant: -8),
             titleLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.7),
             metaLabel.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
-            metaLabel.bottomAnchor.constraint(equalTo: titleLabel.topAnchor, constant: -2),
+            metaLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.7),
             elapsedLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
             remainingLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
         ])
+
+        // Hidden views still occupy Auto Layout space, so the meta→title gap
+        // is a stored constraint toggled with the label in setTitle.
+        metaBottom = metaLabel.bottomAnchor.constraint(equalTo: titleLabel.topAnchor, constant: -2)
+        metaBottom.isActive = false
 
         addTrackingArea(NSTrackingArea(
             rect: .zero,
@@ -761,6 +768,7 @@ final class HUDOverlayView: NSView {
         applyTitleStyle(font: font, text: title)
         metaLabel.stringValue = meta ?? ""
         metaLabel.isHidden = meta?.isEmpty ?? true
+        metaBottom.isActive = !metaLabel.isHidden
         applyMetaStyle(size: max(12, font.pointSize * 2 / 3))
         titleLabel.needsLayout = true
         needsLayout = true
