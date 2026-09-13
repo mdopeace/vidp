@@ -15,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     private var sleepActivity: NSObjectProtocol?
     private let vidExts: Set<String> = ["mp4", "mkv", "webm", "mov", "m4v", "avi"]
     private var isPiPActive = false
+    private var shortcutsSheet: NSWindow?
+    private var shortcutsMonitor: Any?
     private var pipController: PIPViewController?
     private var pipVideo: NSViewController?
     private var savedWindowSize: NSSize?
@@ -175,6 +177,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
 
+        let playbackMenuItem = NSMenuItem()
+        let playbackMenu = NSMenu(title: "Playback")
+        // Real key equivalents (rendered right-aligned per HIG), mirroring
+        // PlayerView.keyDown. They stay disabled while a sheet/panel is open
+        // (see validateMenuItem) so they can't steal keystrokes typed there —
+        // same reach as keyDown, which only fires when PlayerView has focus.
+        func playbackItem(_ title: String, _ key: String, _ action: Selector,
+                          modifiers: NSEvent.ModifierFlags = []) -> NSMenuItem {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            item.keyEquivalentModifierMask = modifiers
+            item.target = self
+            return item
+        }
+        let leftArrow = String(Character(UnicodeScalar(NSLeftArrowFunctionKey)!))
+        let rightArrow = String(Character(UnicodeScalar(NSRightArrowFunctionKey)!))
+        let upArrow = String(Character(UnicodeScalar(NSUpArrowFunctionKey)!))
+        let downArrow = String(Character(UnicodeScalar(NSDownArrowFunctionKey)!))
+        playbackMenu.addItem(playbackItem("Play/Pause", " ", #selector(togglePlayPause)))
+        playbackMenu.addItem(.separator())
+        playbackMenu.addItem(playbackItem("Skip Forward 10 Seconds", rightArrow, #selector(skipForward)))
+        playbackMenu.addItem(playbackItem("Skip Back 10 Seconds", leftArrow, #selector(skipBack)))
+        playbackMenu.addItem(playbackItem("Skip Forward 30 Seconds", rightArrow, #selector(skipForward30), modifiers: .shift))
+        playbackMenu.addItem(playbackItem("Skip Back 30 Seconds", leftArrow, #selector(skipBack30), modifiers: .shift))
+        playbackMenu.addItem(.separator())
+        playbackMenu.addItem(playbackItem("Increase Volume", upArrow, #selector(volumeUp)))
+        playbackMenu.addItem(playbackItem("Decrease Volume", downArrow, #selector(volumeDown)))
+        playbackMenu.addItem(playbackItem("Mute", "m", #selector(toggleMute)))
+        playbackMenu.addItem(.separator())
+        playbackMenu.addItem(playbackItem("Next Video", "l", #selector(playNext)))
+        playbackMenu.addItem(playbackItem("Previous Video", "h", #selector(playPrev)))
+        playbackMenu.addItem(playbackItem("Picture in Picture", "p", #selector(togglePiPFromMenu)))
+        playbackMenu.addItem(.separator())
+        playbackMenu.addItem(playbackItem("Close Video", "w", #selector(closeVideo), modifiers: .command))
+        playbackMenuItem.submenu = playbackMenu
+        mainMenu.addItem(playbackMenuItem)
+
         let windowMenuItem = NSMenuItem()
         let windowMenu = NSMenu(title: "Window")
         windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
@@ -182,6 +220,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         windowMenuItem.submenu = windowMenu
         mainMenu.addItem(windowMenuItem)
         NSApplication.shared.windowsMenu = windowMenu
+
+        let helpMenuItem = NSMenuItem()
+        let helpMenu = NSMenu(title: "Help")
+        helpMenu.addItem(withTitle: "Keyboard Shortcuts…", action: #selector(showShortcuts), keyEquivalent: "?")
+        helpMenuItem.submenu = helpMenu
+        mainMenu.addItem(helpMenuItem)
+        NSApplication.shared.helpMenu = helpMenu
 
         NSApp.mainMenu = mainMenu
     }
@@ -264,10 +309,112 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         hudOverlay.showSettingsPopover()
     }
 
+    // MARK: - Playback menu actions (mirror PlayerView.keyDown)
+
+    @objc private func togglePlayPause() { playerView?.cyclePause() }
+    @objc private func skipForward() { playerView?.seek(seconds: 10) }
+    @objc private func skipBack() { playerView?.seek(seconds: -10) }
+    @objc private func skipForward30() { playerView?.seek(seconds: 30) }
+    @objc private func skipBack30() { playerView?.seek(seconds: -30) }
+    @objc private func volumeUp() { playerView?.adjustVolume(delta: 1) }
+    @objc private func volumeDown() { playerView?.adjustVolume(delta: -1) }
+    @objc private func toggleMute() { playerView?.toggleMute() }
+    @objc private func togglePiPFromMenu() { togglePiP() }
+    @objc private func playNext() { playerDidRequestNext() }
+    @objc private func playPrev() { playerDidRequestPrev() }
+    @objc private func closeVideo() {
+        guard window != nil, playerView != nil, hudOverlay != nil else { return }
+        closeCurrentVideo()
+    }
+
+    @objc private func showShortcuts() {
+        if shortcutsSheet != nil { return }
+        guard let window else { return }
+        // Never stack sheets: endSheet on a never-attached sheet would throw.
+        guard window.attachedSheet == nil, NSApp.modalWindow == nil else { return }
+        // Fixed frames throughout (same pattern as SettingsPopoverView):
+        // no Auto Layout, so the dialog cannot mis-size like the alert did.
+        let rows: [(String, String)] = [
+            ("Space", "Play / Pause"),
+            ("→ / ←", "Skip 10 seconds"),
+            ("⇧ → / ⇧ ←", "Skip 30 seconds"),
+            ("↑ / ↓", "Volume up / down"),
+            ("F  (⌃⌘F)", "Full screen"),
+            ("P", "Picture in Picture"),
+            ("M", "Mute"),
+            ("L / H", "Next / Previous video"),
+            ("⌘O", "Open file"),
+            ("⌘W", "Close video"),
+            ("⌘,", "Settings"),
+        ]
+        let pad: CGFloat = 24
+        let keyW: CGFloat = 95
+        let gap: CGFloat = 12
+        let rowH: CGFloat = 22
+        let contentW: CGFloat = 320
+        let gridH = CGFloat(rows.count) * rowH
+        let btnH: CGFloat = 28
+        let btnW: CGFloat = 120
+        let spacing: CGFloat = 16
+        let contentH = pad + gridH + spacing + btnH + pad
+        let content = NSView(frame: NSRect(x: 0, y: 0, width: contentW, height: contentH))
+        for (i, (key, desc)) in rows.enumerated() {
+            let y = contentH - pad - CGFloat(i + 1) * rowH + (rowH - 17) / 2
+            let keyLabel = NSTextField(labelWithString: key)
+            keyLabel.font = .monospacedSystemFont(ofSize: 12, weight: .semibold)
+            keyLabel.alignment = .right
+            keyLabel.frame = NSRect(x: pad, y: y, width: keyW, height: 17)
+            let descLabel = NSTextField(labelWithString: desc)
+            descLabel.font = .systemFont(ofSize: 13)
+            descLabel.frame = NSRect(x: pad + keyW + gap, y: y, width: contentW - pad * 2 - keyW - gap, height: 17)
+            content.addSubview(keyLabel)
+            content.addSubview(descLabel)
+        }
+        let okButton = NSButton(title: "OK", target: self, action: #selector(closeShortcuts))
+        okButton.keyEquivalent = "\r"
+        okButton.bezelStyle = .rounded
+        okButton.frame = NSRect(x: (contentW - btnW) / 2, y: pad, width: btnW, height: btnH)
+        content.addSubview(okButton)
+
+        let vc = NSViewController()
+        vc.view = content
+        let sheet = NSWindow(contentViewController: vc)
+        sheet.title = "Keyboard Shortcuts"
+        // No .closable: attached sheets never show traffic lights, and OK is
+        // the only way out (via closeShortcuts, which clears shortcutsSheet).
+        sheet.styleMask = [.titled]
+        sheet.isReleasedWhenClosed = false
+        // Focused button, so Space activates OK (Return works via keyEquivalent).
+        sheet.initialFirstResponder = okButton
+        // Focus alone proved unreliable for Space, so intercept it (and Escape)
+        // with a local monitor while the sheet is open. Verified with a
+        // throwaway harness: the monitor fires even with no view focused.
+        shortcutsMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == 49 || event.keyCode == 53 { // space, escape
+                self?.closeShortcuts()
+                return nil
+            }
+            return event
+        }
+        window.beginSheet(sheet)
+        shortcutsSheet = sheet
+    }
+
+    @objc private func closeShortcuts() {
+        guard let sheet = shortcutsSheet, let window else { return }
+        if let monitor = shortcutsMonitor {
+            NSEvent.removeMonitor(monitor)
+            shortcutsMonitor = nil
+        }
+        window.endSheet(sheet)
+        sheet.orderOut(nil)
+        shortcutsSheet = nil
+    }
+
     // MARK: - PiP
 
     func togglePiP() {
-        guard hudOverlay.isFileLoaded else { return }
+        guard hudOverlay?.isFileLoaded ?? false else { return }
         if isPiPActive {
             exitPiP()
         } else {
@@ -380,10 +527,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(showSettings) {
-            return hudOverlay.isFileLoaded
+        // These attach a sheet or open a modal panel: never while one is up,
+        // and never before the window exists.
+        switch menuItem.action {
+        case #selector(openDocument), #selector(showShortcuts):
+            guard let window, window.attachedSheet == nil, NSApp.modalWindow == nil else { return false }
+            return true
+        default:
+            break
         }
-        return true
+        if menuItem.action == #selector(showSettings) {
+            guard window?.attachedSheet == nil, NSApp.modalWindow == nil else { return false }
+            return hudOverlay?.isFileLoaded ?? false
+        }
+        if menuItem.action == #selector(toggleMute) {
+            menuItem.title = (playerView?.boolProperty("mute") ?? false) ? "Unmute" : "Mute"
+        }
+        switch menuItem.action {
+        case #selector(togglePlayPause),
+             #selector(skipForward), #selector(skipBack),
+             #selector(skipForward30), #selector(skipBack30),
+             #selector(volumeUp), #selector(volumeDown),
+             #selector(toggleMute),
+             #selector(playNext), #selector(playPrev),
+             #selector(togglePiPFromMenu),
+             #selector(closeVideo):
+            // Disabled items don't match key equivalents, so this also keeps
+            // single-letter shortcuts from firing while a sheet (settings,
+            // shortcuts, Open panel) owns keyboard focus.
+            guard window?.attachedSheet == nil, NSApp.modalWindow == nil else { return false }
+            return hudOverlay?.isFileLoaded ?? false
+        default:
+            return true
+        }
     }
 
     @objc private func makeDefaultPlayer() {
