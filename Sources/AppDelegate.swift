@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     private var savedWindowSize: NSSize?
     private var hasShownWindow = false
     private let applicationPath = URL(fileURLWithPath: "/Applications/vidp.app")
+    private static let supportURL = URL(string: "https://buymeacoffee.com/mdopeace")!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
@@ -70,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             self?.window.toggleFullScreen(nil)
         }
         hudOverlay.onBack = { [weak self] in self?.closeCurrentVideo() }
+        hudOverlay.onSupport = { [weak self] in self?.openSupportLink() }
         visualEffectView.addSubview(hudOverlay)
         NSLayoutConstraint.activate([
             hudOverlay.leadingAnchor.constraint(equalTo: visualEffectView.leadingAnchor),
@@ -150,12 +152,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
+        // macOS Tahoe auto-icons standard items (About, Quit) only —
+        // custom items need explicit images to match.
+        func menuIcon(_ name: String) -> NSImage? {
+            let img = NSImage(systemSymbolName: name, accessibilityDescription: nil)
+            img?.isTemplate = true
+            return img
+        }
         appMenu.addItem(withTitle: "About vidp", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
-        appMenu.addItem(withTitle: "Check for Updates\u{2026}", action: #selector(checkForUpdates), keyEquivalent: "")
+        let updatesItem = appMenu.addItem(withTitle: "Check for Updates\u{2026}", action: #selector(checkForUpdates), keyEquivalent: "")
+        updatesItem.target = self
+        updatesItem.image = menuIcon("arrow.triangle.2.circlepath")
+        let supportItem = appMenu.addItem(withTitle: "Buy Me a Coffee\u{2026}", action: #selector(openSupportLink), keyEquivalent: "")
+        supportItem.target = self
+        supportItem.image = menuIcon("heart")
         appMenu.addItem(.separator())
         let settingsItem = appMenu.addItem(withTitle: "Settings\u{2026}", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
-        appMenu.addItem(withTitle: "Remove vidp\u{2026}", action: #selector(uninstallApp), keyEquivalent: "")
+        settingsItem.image = menuIcon("gear")
+        let removeItem = appMenu.addItem(withTitle: "Remove vidp\u{2026}", action: #selector(uninstallApp), keyEquivalent: "")
+        removeItem.target = self
+        removeItem.image = menuIcon("trash")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit vidp", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
@@ -646,6 +663,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
     @objc private func checkForUpdates() {
         performVersionCheck(showUpToDate: true)
+    }
+
+    @objc private func openSupportLink() {
+        NSWorkspace.shared.open(Self.supportURL)
     }
 
     private func performVersionCheck(showUpToDate: Bool) {
