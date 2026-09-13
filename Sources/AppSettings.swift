@@ -31,7 +31,7 @@ enum AppSettings {
     private static let defaults: [String: Any] = [
         K.hudFontName: "",
         K.hudBold: true,
-        K.hudItalic: true,
+        K.hudItalic: false,
         K.hudBorderColor: "0.0/0.0/0.0/1.0",
         K.hudBorderSize: 1.0,
         K.progressColor: "",
