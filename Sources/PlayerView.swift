@@ -419,10 +419,22 @@ final class PlayerView: NSView {
     private func restoreSavedTracks() {
         guard let path = currentPath else { return }
         let defaults = UserDefaults.standard
-        if let sub = (defaults.object(forKey: "sid:\(path)") as? Int) ?? (defaults.object(forKey: "sid:last") as? Int) {
+        // Saved aid/sid from another file may not exist here (e.g. aid:last=2
+        // on a file with only 1 audio track). Setting a nonexistent id leaves
+        // mpv with no track selected -> silent / missing subs. Only restore
+        // ids that actually exist; otherwise keep mpv's default selection.
+        // id 0 maps to "no" (subs Off) and is always valid.
+        let tracks = trackList()
+        func exists(type: String, id: Int) -> Bool {
+            if id == 0 { return type == "sub" }
+            return tracks.contains { ($0["type"] as? String) == type && ($0["id"] as? Int64) == Int64(id) }
+        }
+        if let sub = (defaults.object(forKey: "sid:\(path)") as? Int) ?? (defaults.object(forKey: "sid:last") as? Int),
+           exists(type: "sub", id: sub) {
             setTrack("sid", id: sub)
         }
-        if let audio = (defaults.object(forKey: "aid:\(path)") as? Int) ?? (defaults.object(forKey: "aid:last") as? Int) {
+        if let audio = (defaults.object(forKey: "aid:\(path)") as? Int) ?? (defaults.object(forKey: "aid:last") as? Int),
+           exists(type: "audio", id: audio) {
             setTrack("aid", id: audio)
         }
     }
