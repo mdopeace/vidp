@@ -108,7 +108,7 @@ final class HUDOverlayView: NSView {
         let supportGlass = makeTransportButton(
             symbol: "heart", pointSize: 15, diameter: 40,
             action: #selector(supportTapped))
-        (supportGlass.contentView as? NSButton)?.toolTip = "Support vidp — Buy Me a Coffee"
+        (supportGlass.contentView as? NSButton)?.toolTip = "Support Vidp — Buy Me a Coffee"
         let topLeftRow = NSStackView(views: [backGlass, supportGlass])
         topLeftRow.spacing = 12
         topLeftRow.alignment = .centerY
