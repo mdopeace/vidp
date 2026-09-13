@@ -55,6 +55,7 @@ final class HUDOverlayView: NSView {
     private var isScrubbing = false
     private var wasPlayingBeforeScrub = false
     private var titleLabel: NSTextField!
+    private var metaLabel: NSTextField!
     private var smoothTimer: Timer?
     // mpv_command is a blocking main-thread call; seeking on every mouseMove
     // stalls the slider's tracking loop, making the knob feel heavy. Coalesce.
@@ -163,6 +164,15 @@ final class HUDOverlayView: NSView {
         addSubview(titleLabel)
         applyTitleStyle()
 
+        // Meta line above the title: S01E01 / year at half size, half opacity
+        metaLabel = NSTextField(labelWithString: "")
+        metaLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: 15,
+                                             bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        metaLabel.textColor = NSColor(white: 1, alpha: 0.5)
+        metaLabel.lineBreakMode = .byTruncatingTail
+        metaLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(metaLabel)
+
         // Bottom progress bar
         let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
 
@@ -217,6 +227,8 @@ final class HUDOverlayView: NSView {
             titleLabel.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
             titleLabel.bottomAnchor.constraint(equalTo: barRow.topAnchor, constant: -8),
             titleLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.7),
+            metaLabel.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
+            metaLabel.bottomAnchor.constraint(equalTo: titleLabel.topAnchor, constant: -2),
             elapsedLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
             remainingLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
         ])
@@ -245,6 +257,7 @@ final class HUDOverlayView: NSView {
                                            bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
             applyTitleStyle(font: font)
         }
+        applyMetaStyle(size: max(9, size / 2))
         volumeLabel?.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size * Self.osdScale,
                                                 bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         let iconConfig = NSImage.SymbolConfiguration(pointSize: size * Self.osdScale, weight: .semibold)
@@ -447,6 +460,7 @@ final class HUDOverlayView: NSView {
     @objc private func settingsDidChange() {
         progressBar.trackFillColor = AppSettings.progressNSColor
         applyTitleStyle()
+        applyMetaStyle(size: max(9, (titleLabel.font?.pointSize ?? 30) / 2))
         needsLayout = true
     }
 
@@ -741,10 +755,13 @@ final class HUDOverlayView: NSView {
         }
     }
 
-    func setTitle(_ title: String) {
+    func setTitle(_ title: String, meta: String? = nil) {
         let font = titleLabel.font ?? AppSettings.hudFont(named: AppSettings.hudFontName, size: 30,
                                                           bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         applyTitleStyle(font: font, text: title)
+        metaLabel.stringValue = meta ?? ""
+        metaLabel.isHidden = meta?.isEmpty ?? true
+        applyMetaStyle(size: max(9, font.pointSize / 2))
         titleLabel.needsLayout = true
         needsLayout = true
     }
@@ -782,5 +799,13 @@ final class HUDOverlayView: NSView {
             .shadow: halo,
         ]
         titleLabel.attributedStringValue = NSAttributedString(string: string, attributes: attrs)
+    }
+
+    private func applyMetaStyle(size: CGFloat) {
+        let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
+                                       bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        guard metaLabel.font?.pointSize != size || metaLabel.font?.fontName != font.fontName else { return }
+        metaLabel.font = font
+        metaLabel.textColor = NSColor(white: 1, alpha: 0.5)
     }
 }

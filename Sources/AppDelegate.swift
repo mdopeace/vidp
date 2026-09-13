@@ -876,7 +876,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         }
         hudOverlay?.setFileLoaded(false)
         let filename = URL(fileURLWithPath: path).lastPathComponent
-        hudOverlay?.setTitle(MediaNameParser.parse(filename: filename).prettyTitle())
+        let parsed = MediaNameParser.parse(filename: filename)
+        hudOverlay?.setTitle(parsed.title, meta: parsed.metaLine)
         // Hide the homepage overlay synchronously so a cold-start open never
         // flashes the homepage while mpv decodes the first frame.
         playerView.hideOverlay()

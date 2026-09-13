@@ -21,6 +21,17 @@ struct ParsedMedia {
         }
         return title
     }
+
+    /// Small meta line for the HUD row above the title (S01E01 / year).
+    var metaLine: String? {
+        if let s = season, let e = episode {
+            let ep = String(format: "S%02dE%02d", s, e)
+            if let y = year { return "\(y) · \(ep)" }
+            return ep
+        }
+        if let y = year { return "\(y)" }
+        return nil
+    }
 }
 
 enum MediaNameParser {

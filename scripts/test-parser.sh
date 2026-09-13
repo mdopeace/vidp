@@ -24,6 +24,10 @@ check(MediaNameParser.parse(filename: "Blade Runner (Final Cut) 2007.mkv").prett
 check(MediaNameParser.parse(filename: "Some.Movie.2020.[x265].mkv").prettyTitle(), "Some Movie (2020)", "movie-codec-bracket")
 check(MediaNameParser.parse(filename: "Some.Movie.1080p.BluRay.mkv").prettyTitle(), "Some Movie", "fallback-codec-words")
 check(MediaNameParser.parse(filename: "Show.2012.S01E02.mkv").prettyTitle(), "Show (2012) S01E02", "tv-year")
+check(MediaNameParser.parse(filename: "Breaking.Bad.S01E02.mp4").metaLine ?? "nil", "S01E02", "meta-tv")
+check(MediaNameParser.parse(filename: "Dune.Part.Two.2024.mkv").metaLine ?? "nil", "2024", "meta-movie")
+check(MediaNameParser.parse(filename: "Show.2012.S01E02.mkv").metaLine ?? "nil", "2012 · S01E02", "meta-tv-year")
+check(MediaNameParser.parse(filename: "Some Random Video.mkv").metaLine ?? "nil", "nil", "meta-none")
 if failures > 0 { print("\(failures) FAILURES"); exit(1) }
 print("ALL PASS")
 EOF
