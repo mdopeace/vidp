@@ -41,6 +41,7 @@ final class HUDOverlayView: NSView {
     private var audioGlass: NSGlassEffectView!
     private var subsGlass: NSGlassEffectView!
     private var settingsSheet: NSWindow?
+    private var settingsMonitor: Any?
     var transportStack: NSStackView!
     var onPiPToggle: (() -> Void)?
     var onFullscreenToggle: (() -> Void)?
@@ -383,6 +384,9 @@ final class HUDOverlayView: NSView {
             closeSettings()
             return
         }
+        // Never stack on another sheet (shortcuts): beginSheet would fail
+        // while settingsSheet gets set, orphaning state with no visible sheet.
+        guard window?.attachedSheet == nil else { return }
         wasPlayingBeforeSettings = !(playerView?.boolProperty("pause") ?? true)
         if wasPlayingBeforeSettings { playerView?.cyclePause() }
 
@@ -393,18 +397,35 @@ final class HUDOverlayView: NSView {
 
         let sheet = NSWindow(contentViewController: vc)
         sheet.title = "Settings"
-        sheet.styleMask = [.titled, .closable]
+        // No .closable: attached sheets show no traffic lights, and Done /
+        // Escape (monitor below) are the only dismissal paths, both of which
+        // clear settingsSheet and the monitor.
+        sheet.styleMask = [.titled]
         sheet.isOpaque = false
         sheet.backgroundColor = .clear
         sheet.titlebarAppearsTransparent = true
         sheet.isReleasedWhenClosed = false
         window?.beginSheet(sheet)
         settingsSheet = sheet
+        // Escape dismisses (same as Done). Space is deliberately left alone:
+        // focused checkboxes/buttons need it.
+        settingsMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == 53 { // escape
+                self?.closeSettings()
+                return nil
+            }
+            return event
+        }
     }
 
     private func closeSettings() {
         guard let sheet = settingsSheet, let window else { return }
+        if let monitor = settingsMonitor {
+            NSEvent.removeMonitor(monitor)
+            settingsMonitor = nil
+        }
         window.endSheet(sheet)
+        sheet.orderOut(nil)
         settingsSheet = nil
         if wasPlayingBeforeSettings { playerView?.cyclePause() }
         wasPlayingBeforeSettings = false
