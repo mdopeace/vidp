@@ -64,6 +64,11 @@ final class HUDOverlayView: NSView {
     var volumeIconView: NSImageView!
     var volumeStack: NSStackView!
     private var volumeIconName = "speaker.wave.2"
+    // OSD icons match the 90 play-button presence: base boxes (40/55/48,
+    // tuned so all three render the same height) scaled uniformly.
+    static let osdScale: CGFloat = 2.25
+    var volumeIconWidth: NSLayoutConstraint!
+    var volumeIconHeight: NSLayoutConstraint!
     var volumeCenterY: NSLayoutConstraint!
     var volumeAboveTransport: NSLayoutConstraint!
     private var volumeHideTimer: Timer?
@@ -227,9 +232,9 @@ final class HUDOverlayView: NSView {
         let size = max(18, 30 * min(1, bounds.width / refWidth))
         titleLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
                                           bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
-        volumeLabel?.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
+        volumeLabel?.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size * Self.osdScale,
                                                 bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
-        let iconConfig = NSImage.SymbolConfiguration(pointSize: size, weight: .semibold)
+        let iconConfig = NSImage.SymbolConfiguration(pointSize: size * Self.osdScale, weight: .semibold)
         volumeIconView?.image =
             NSImage(systemSymbolName: volumeIconName, accessibilityDescription: nil)?
             .withSymbolConfiguration(iconConfig)
@@ -322,6 +327,8 @@ final class HUDOverlayView: NSView {
         updateMuteIcon(muted: muted)
         if muted {
             guard volumeLabel != nil else { return }
+            volumeLabel.isHidden = false
+            setIconBox(40)
             setVolumeIcon("speaker.slash.fill")
             volumeLabel.stringValue = ""
             presentVolumeOSD()
@@ -579,14 +586,44 @@ final class HUDOverlayView: NSView {
 
     func showVolumeIndicator(_ volume: Int) {
         guard volumeLabel != nil else { return }
+        volumeLabel.isHidden = false
+        // speaker.wave.2 is width-bound (44x32 @30pt): needs a 55 box
+        // to render 40 tall like the other icons.
+        setIconBox(55)
         setVolumeIcon("speaker.wave.2")
         volumeLabel.stringValue = "\(volume)%"
         presentVolumeOSD()
     }
 
+    func showSkipIndicator(seconds: Double) {
+        guard volumeLabel != nil, isFileLoaded else { return }
+        let secs = Int(round(seconds))
+        guard secs != 0 else { return }
+        let forward = secs >= 0
+        let magnitude = abs(secs)
+        // Number is baked into the glyph — icon only, no text.
+        // Thin outline glyph: oversized 48 box (+20% optical compensation)
+        // so it reads the same size as the solid glyphs at 40.
+        setIconBox(48)
+        if magnitude == 10 || magnitude == 30 {
+            setVolumeIcon(forward ? "goforward.\(magnitude)" : "gobackward.\(magnitude)")
+            volumeLabel.isHidden = true
+        } else {
+            volumeLabel.isHidden = false
+            setVolumeIcon(forward ? "goforward" : "gobackward")
+            volumeLabel.stringValue = "\(forward ? "+" : "-")\(magnitude)s"
+        }
+        presentVolumeOSD()
+    }
+
+    private func setIconBox(_ base: CGFloat) {
+        volumeIconWidth?.constant = base * Self.osdScale
+        volumeIconHeight?.constant = base * Self.osdScale
+    }
+
     private func setVolumeIcon(_ name: String) {
         volumeIconName = name
-        let size = volumeLabel?.font?.pointSize ?? 30
+        let size = volumeLabel?.font?.pointSize ?? (30 * Self.osdScale)
         let config = NSImage.SymbolConfiguration(pointSize: size, weight: .semibold)
         volumeIconView?.image =
             NSImage(systemSymbolName: name, accessibilityDescription: nil)?
