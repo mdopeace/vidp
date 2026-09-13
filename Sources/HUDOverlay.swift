@@ -166,7 +166,7 @@ final class HUDOverlayView: NSView {
 
         // Meta line above the title: S01E01 / year at half size, half opacity
         metaLabel = NSTextField(labelWithString: "")
-        metaLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: 15,
+        metaLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: 20,
                                              bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         metaLabel.textColor = NSColor(white: 1, alpha: 0.5)
         metaLabel.lineBreakMode = .byTruncatingTail
@@ -257,7 +257,7 @@ final class HUDOverlayView: NSView {
                                            bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
             applyTitleStyle(font: font)
         }
-        applyMetaStyle(size: max(9, size / 2))
+        applyMetaStyle(size: max(12, size * 2 / 3))
         volumeLabel?.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size * Self.osdScale,
                                                 bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         let iconConfig = NSImage.SymbolConfiguration(pointSize: size * Self.osdScale, weight: .semibold)
@@ -460,7 +460,7 @@ final class HUDOverlayView: NSView {
     @objc private func settingsDidChange() {
         progressBar.trackFillColor = AppSettings.progressNSColor
         applyTitleStyle()
-        applyMetaStyle(size: max(9, (titleLabel.font?.pointSize ?? 30) / 2))
+        applyMetaStyle(size: max(12, (titleLabel.font?.pointSize ?? 30) * 2 / 3))
         needsLayout = true
     }
 
@@ -761,7 +761,7 @@ final class HUDOverlayView: NSView {
         applyTitleStyle(font: font, text: title)
         metaLabel.stringValue = meta ?? ""
         metaLabel.isHidden = meta?.isEmpty ?? true
-        applyMetaStyle(size: max(9, font.pointSize / 2))
+        applyMetaStyle(size: max(12, font.pointSize * 2 / 3))
         titleLabel.needsLayout = true
         needsLayout = true
     }
