@@ -167,7 +167,7 @@ final class HUDOverlayView: NSView {
         // Meta line above the title: S01E01 / year at half size, half opacity
         metaLabel = NSTextField(labelWithString: "")
         metaLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: 20,
-                                             bold: AppSettings.hudBold, italic: false)
+                                             bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         metaLabel.textColor = NSColor(white: 1, alpha: 0.5)
         metaLabel.lineBreakMode = .byTruncatingTail
         metaLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -803,7 +803,7 @@ final class HUDOverlayView: NSView {
 
     private func applyMetaStyle(size: CGFloat) {
         let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
-                                       bold: AppSettings.hudBold, italic: false)
+                                       bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         guard metaLabel.font?.pointSize != size || metaLabel.font?.fontName != font.fontName else { return }
         metaLabel.font = font
         metaLabel.textColor = NSColor(white: 1, alpha: 0.5)
