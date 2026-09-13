@@ -85,7 +85,7 @@ final class SettingsPopoverView: NSView {
 
         hudBoldCheck = makeStyleCheck("Bold", #selector(hudBoldToggled), AppSettings.hudBold)
         hudItalicCheck = makeStyleCheck("Italic", #selector(hudItalicToggled), AppSettings.hudItalic)
-        stack.addArrangedSubview(makeStyleRow(hudBoldCheck, hudItalicCheck))
+        stack.addArrangedSubview(makeStyleRow(hudSystemCheck, hudBoldCheck, hudItalicCheck))
 
         // Title shadow
         let hudBorderRow = NSStackView()
@@ -139,7 +139,7 @@ final class SettingsPopoverView: NSView {
 
         subBoldCheck = makeStyleCheck("Bold", #selector(subBoldToggled), AppSettings.subBold)
         subItalicCheck = makeStyleCheck("Italic", #selector(subItalicToggled), AppSettings.subItalic)
-        stack.addArrangedSubview(makeStyleRow(subBoldCheck, subItalicCheck))
+        stack.addArrangedSubview(makeStyleRow(subSystemCheck, subBoldCheck, subItalicCheck))
 
         // Sub size
         let sizeRow = NSStackView()
@@ -290,8 +290,8 @@ final class SettingsPopoverView: NSView {
         return check
     }
 
-    private func makeStyleRow(_ bold: NSButton, _ italic: NSButton) -> NSStackView {
-        let row = NSStackView(views: [colGuard(), bold, italic])
+    private func makeStyleRow(_ checks: NSButton...) -> NSStackView {
+        let row = NSStackView(views: [colGuard()] + checks)
         row.spacing = 8
         row.alignment = .centerY
         return makeRow(row)
@@ -310,7 +310,7 @@ final class SettingsPopoverView: NSView {
         check.state = selected.isEmpty ? .on : .off
         check.contentTintColor = NSColor(white: 0.8, alpha: 1)
 
-        let row = NSStackView(views: [rowLabel("Font"), wrap, check])
+        let row = NSStackView(views: [rowLabel("Font"), wrap])
         row.spacing = 8
         row.alignment = .centerY
         return (row, popup, check)
