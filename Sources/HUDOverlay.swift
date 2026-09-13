@@ -46,6 +46,7 @@ final class HUDOverlayView: NSView {
     var onPiPToggle: (() -> Void)?
     var onFullscreenToggle: (() -> Void)?
     var onBack: (() -> Void)?
+    var onSupport: (() -> Void)?
 
     private var elapsedLabel: NSTextField!
     private var remainingLabel: NSTextField!
@@ -100,11 +101,15 @@ final class HUDOverlayView: NSView {
             transportStack.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
 
-        // Top-left: back button
+        // Top-left: back + support buttons
         let backGlass = makeTransportButton(
             symbol: "chevron.left", pointSize: 15, diameter: 40,
             action: #selector(backTapped))
-        let topLeftRow = NSStackView(views: [backGlass])
+        let supportGlass = makeTransportButton(
+            symbol: "heart", pointSize: 15, diameter: 40,
+            action: #selector(supportTapped))
+        (supportGlass.contentView as? NSButton)?.toolTip = "Support vidp — Buy Me a Coffee"
+        let topLeftRow = NSStackView(views: [backGlass, supportGlass])
         topLeftRow.spacing = 12
         topLeftRow.alignment = .centerY
         topLeftRow.translatesAutoresizingMaskIntoConstraints = false
@@ -281,6 +286,7 @@ final class HUDOverlayView: NSView {
     @objc private func playTapped()   { playerView?.cyclePause(); resetHideTimer() }
     @objc private func forwardTapped(){ playerView?.seek(seconds: 10); resetHideTimer() }
     @objc private func backTapped()   { onBack?(); resetHideTimer() }
+    @objc private func supportTapped() { onSupport?(); resetHideTimer() }
 
     private func showTrackMenu(type: String, property: String, for button: NSView) {
         guard let pv = playerView else { return }
