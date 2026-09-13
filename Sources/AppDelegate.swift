@@ -80,22 +80,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         let volumeIconView = NSImageView()
         volumeIconView.imageScaling = .scaleProportionallyUpOrDown
         volumeIconView.contentTintColor = NSColor(white: 1, alpha: 0.5)
-        let volumeIconConfig = NSImage.SymbolConfiguration(pointSize: 30, weight: .semibold)
+        let volumeIconConfig = NSImage.SymbolConfiguration(pointSize: 30 * HUDOverlayView.osdScale, weight: .semibold)
         volumeIconView.image = NSImage(systemSymbolName: "speaker.wave.2", accessibilityDescription: nil)?
             .withSymbolConfiguration(volumeIconConfig)
         volumeIconView.translatesAutoresizingMaskIntoConstraints = false
+        hudOverlay.volumeIconWidth = volumeIconView.widthAnchor.constraint(equalToConstant: 40 * HUDOverlayView.osdScale)
+        hudOverlay.volumeIconHeight = volumeIconView.heightAnchor.constraint(equalToConstant: 40 * HUDOverlayView.osdScale)
         NSLayoutConstraint.activate([
-            volumeIconView.widthAnchor.constraint(equalToConstant: 40),
-            volumeIconView.heightAnchor.constraint(equalToConstant: 40),
+            hudOverlay.volumeIconWidth,
+            hudOverlay.volumeIconHeight,
         ])
         let volumeLabel = NSTextField(labelWithString: "")
-        volumeLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: 30,
+        volumeLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: 30 * HUDOverlayView.osdScale,
                                               bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         volumeLabel.textColor = NSColor(white: 1, alpha: 0.5)
         volumeLabel.translatesAutoresizingMaskIntoConstraints = false
         let volumeStack = NSStackView(views: [volumeIconView, volumeLabel])
         volumeStack.orientation = .horizontal
-        volumeStack.spacing = 10
+        volumeStack.spacing = 10 * HUDOverlayView.osdScale
         volumeStack.alignment = .centerY
         volumeStack.translatesAutoresizingMaskIntoConstraints = false
         volumeStack.alphaValue = 0
@@ -955,6 +957,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     func playerDidAdjustVolume(_ volume: Int) {
         hudOverlay.updateMuteIcon(muted: playerView.boolProperty("mute") ?? false)
         hudOverlay.showVolumeIndicator(volume)
+    }
+
+    func playerDidSeek(seconds: Double) {
+        hudOverlay.showSkipIndicator(seconds: seconds)
     }
 
     func playerDidToggleMute(_ muted: Bool) {

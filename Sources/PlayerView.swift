@@ -248,6 +248,9 @@ final class PlayerView: NSView {
                 }
             }
         }
+        if fileLoaded {
+            delegate?.playerDidSeek(seconds: seconds)
+        }
     }
 
     func seekAbsolute(_ seconds: Double) {
