@@ -155,6 +155,7 @@ final class HUDOverlayView: NSView {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         addSubview(titleLabel)
+        applyTitleStyle()
 
         // Bottom progress bar
         let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
@@ -230,8 +231,14 @@ final class HUDOverlayView: NSView {
         // Full 30pt at fullscreen width, scaled down proportionally in windowed mode
         let refWidth = window?.screen?.frame.width ?? bounds.width
         let size = max(18, 30 * min(1, bounds.width / refWidth))
-        titleLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
-                                          bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        // Re-styling rewrites attributedStringValue, which re-marks the view
+        // as needing layout — so only do it when the size actually changed.
+        // (Text changes go through setTitle, settings through settingsDidChange.)
+        if titleLabel.font?.pointSize != size {
+            let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
+                                           bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+            applyTitleStyle(font: font)
+        }
         volumeLabel?.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size * Self.osdScale,
                                                 bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         let iconConfig = NSImage.SymbolConfiguration(pointSize: size * Self.osdScale, weight: .semibold)
@@ -412,6 +419,7 @@ final class HUDOverlayView: NSView {
 
     @objc private func settingsDidChange() {
         progressBar.trackFillColor = AppSettings.progressNSColor
+        applyTitleStyle()
         needsLayout = true
     }
 
@@ -707,8 +715,45 @@ final class HUDOverlayView: NSView {
     }
 
     func setTitle(_ title: String) {
-        titleLabel.stringValue = title
+        let font = titleLabel.font ?? AppSettings.hudFont(named: AppSettings.hudFontName, size: 30,
+                                                          bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        applyTitleStyle(font: font, text: title)
         titleLabel.needsLayout = true
         needsLayout = true
+    }
+
+    private func applyTitleStyle() {
+        let size = titleLabel.font?.pointSize ?? 30
+        let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
+                                       bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        applyTitleStyle(font: font)
+    }
+
+    private func applyTitleStyle(font: NSFont, text: String? = nil) {
+        let string = text ?? titleLabel.attributedStringValue.string
+        guard !string.isEmpty else {
+            titleLabel.attributedStringValue = NSAttributedString(string: "")
+            return
+        }
+        titleLabel.font = font
+        guard AppSettings.hudBorderSize > 0 else {
+            titleLabel.textColor = .white
+            titleLabel.stringValue = string
+            return
+        }
+        // NB: no .strokeWidth here on purpose. AppKit draws a negative
+        // stroke centered on the glyph path, so half of it eats the fill
+        // (thin white core, fat dark edge). A zero-offset shadow renders
+        // fully outside the glyphs, like mpv's subtitle border.
+        let halo = NSShadow()
+        halo.shadowColor = AppSettings.hudBorderNSColor
+        halo.shadowBlurRadius = CGFloat(AppSettings.hudBorderSize) * 2
+        halo.shadowOffset = .zero
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.white,
+            .shadow: halo,
+        ]
+        titleLabel.attributedStringValue = NSAttributedString(string: string, attributes: attrs)
     }
 }

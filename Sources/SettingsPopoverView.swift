@@ -7,6 +7,9 @@ final class SettingsPopoverView: NSView {
     private var hudSystemCheck: NSButton!
     private var hudBoldCheck: NSButton!
     private var hudItalicCheck: NSButton!
+    private var hudBorderColorWell: NSColorWell!
+    private var hudBorderSlider: NSSlider!
+    private var hudBorderLabel: NSTextField!
     private var progressColorWell: NSColorWell!
     private var progressSystemCheck: NSButton!
     private var subFontPopup: NSPopUpButton!
@@ -83,6 +86,25 @@ final class SettingsPopoverView: NSView {
         hudBoldCheck = makeStyleCheck("Bold", #selector(hudBoldToggled), AppSettings.hudBold)
         hudItalicCheck = makeStyleCheck("Italic", #selector(hudItalicToggled), AppSettings.hudItalic)
         stack.addArrangedSubview(makeStyleRow(hudBoldCheck, hudItalicCheck))
+
+        // Title shadow
+        let hudBorderRow = NSStackView()
+        hudBorderRow.spacing = 8
+        hudBorderRow.alignment = .centerY
+        hudBorderRow.addArrangedSubview(rowLabel("Shadow"))
+        hudBorderColorWell = colorWell(hex: AppSettings.hudBorderColor)
+        hudBorderColorWell.target = self
+        hudBorderColorWell.action = #selector(hudBorderColorChanged)
+        hudBorderRow.addArrangedSubview(hudBorderColorWell)
+        hudBorderSlider = NSSlider(value: AppSettings.hudBorderSize, minValue: 0, maxValue: 10,
+                                   target: self, action: #selector(hudBorderChanged))
+        hudBorderSlider.widthAnchor.constraint(equalToConstant: 136).isActive = true
+        hudBorderRow.addArrangedSubview(hudBorderSlider)
+        hudBorderLabel = makeLabel(String(Int(AppSettings.hudBorderSize)), size: 12, color: .white)
+        hudBorderLabel.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([hudBorderLabel.widthAnchor.constraint(equalToConstant: 28)])
+        hudBorderRow.addArrangedSubview(hudBorderLabel)
+        stack.addArrangedSubview(makeRow(hudBorderRow))
 
         // Progress bar fill
         let progressRow = NSStackView()
@@ -411,6 +433,16 @@ final class SettingsPopoverView: NSView {
         AppSettings.setHudBold(hudBoldCheck.state == .on)
     }
 
+    @objc private func hudBorderColorChanged() {
+        AppSettings.setHudBorderColor(toMPV(hudBorderColorWell.color))
+    }
+
+    @objc private func hudBorderChanged() {
+        let val = hudBorderSlider.doubleValue
+        hudBorderLabel.stringValue = String(Int(val))
+        AppSettings.setHudBorderSize(val)
+    }
+
     @objc private func hudItalicToggled() {
         AppSettings.setHudItalic(hudItalicCheck.state == .on)
     }
@@ -452,6 +484,9 @@ final class SettingsPopoverView: NSView {
         if let idx = fonts.firstIndex(of: AppSettings.hudFontName) { hudFontPopup.selectItem(at: idx) }
         hudBoldCheck.state = AppSettings.hudBold ? .on : .off
         hudItalicCheck.state = AppSettings.hudItalic ? .on : .off
+        hudBorderColorWell.color = colorFromMPV(AppSettings.hudBorderColor)
+        hudBorderSlider.doubleValue = AppSettings.hudBorderSize
+        hudBorderLabel.stringValue = String(Int(AppSettings.hudBorderSize))
         progressSystemCheck.state = AppSettings.progressColor.isEmpty ? .on : .off
         progressColorWell.isEnabled = !AppSettings.progressColor.isEmpty
         if !AppSettings.progressColor.isEmpty {
