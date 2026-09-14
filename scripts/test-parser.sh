@@ -4,9 +4,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-TMPDIR=$(mktemp -d)
-trap 'rm -rf "$TMPDIR"' EXIT
-cat > "$TMPDIR/main.swift" <<'EOF'
+TMP_WORK=$(mktemp -d)
+trap 'rm -rf "$TMP_WORK"' EXIT
+cat > "$TMP_WORK/main.swift" <<'EOF'
 import Foundation
 var failures = 0
 func check(_ got: String, _ want: String, _ name: String) {
@@ -25,6 +25,8 @@ check(MediaNameParser.parse(filename: "Some.Movie.2020.[x265].mkv").prettyTitle(
 check(MediaNameParser.parse(filename: "Some.Movie.1080p.BluRay.mkv").prettyTitle(), "Some Movie", "fallback-codec-words")
 check(MediaNameParser.parse(filename: "Some.Movie.HDTV.mkv").prettyTitle(), "Some Movie", "fallback-hdtv")
 check(MediaNameParser.parse(filename: "Some.Movie.HDR.x264.mkv").prettyTitle(), "Some Movie", "fallback-hdr")
+check(MediaNameParser.parse(filename: "A.Proper.Marriage.2020.mkv").prettyTitle(), "A Proper Marriage (2020)", "movie-title-word")
+check(MediaNameParser.parse(filename: "Show.S01E01.PROPER.1080p.mkv").prettyTitle(), "Show S01E01", "tv-trailing-tag")
 check(MediaNameParser.parse(filename: "Show.2012.S01E02.mkv").prettyTitle(), "Show (2012) S01E02", "tv-year")
 check(MediaNameParser.parse(filename: "Breaking.Bad.S01E02.mp4").metaLine ?? "nil", "S01E02", "meta-tv")
 check(MediaNameParser.parse(filename: "Dune.Part.Two.2024.mkv").metaLine ?? "nil", "2024", "meta-movie")
@@ -33,5 +35,5 @@ check(MediaNameParser.parse(filename: "Some Random Video.mkv").metaLine ?? "nil"
 if failures > 0 { print("\(failures) FAILURES"); exit(1) }
 print("ALL PASS")
 EOF
-swiftc Sources/MediaNameParser.swift "$TMPDIR/main.swift" -o "$TMPDIR/test_parser"
-"$TMPDIR/test_parser"
+swiftc Sources/MediaNameParser.swift "$TMP_WORK/main.swift" -o "$TMP_WORK/test_parser"
+"$TMP_WORK/test_parser"

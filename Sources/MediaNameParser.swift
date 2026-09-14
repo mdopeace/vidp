@@ -37,9 +37,13 @@ enum MediaNameParser {
     private static let yearPat = try! NSRegularExpression(pattern: "^(.+?)[.\\s_\\-(\\[]+(19\\d{2}|20\\d{2})\\b")
     private static let brackets = try! NSRegularExpression(pattern: "\\[[^\\]]*\\]|\\([^\\)]*\\)")
     private static let spaces = try! NSRegularExpression(pattern: "\\s{2,}")
-    // Strictly technical tags — never edition words (Final Cut, Extended, …).
+    // Strictly technical tags — never edition words (Final Cut, Extended, …)
+    // or real title words (Proper, Cam, Vision). Ambiguous scene tags
+    // (proper/ts/tc/…) strip from the END only, where tags live.
     private static let codecWords = try! NSRegularExpression(
-        pattern: "(?i)\\b(2160p|1080p|720p|480p|576p|4k|hdr(10)?|dolby|x265|x264|h\\.?264|h\\.?265|hevc|web-?dl|webrip|blu-?ray|brrip|bdrip|dvdrip|dvdscr|screener|hdtv|hdrip|aac|ac3|ddp|dts|atmos|truehd|ts|tc|multi|proper|repack|rerepack|10bit|8bit|amzn|nf|dsnp|hulu|yify|rarbg)\\b")
+        pattern: "(?i)\\b(2160p|1080p|720p|480p|576p|4k|hdr(10)?|dolby|x265|x264|h\\.?264|h\\.?265|hevc|web-?dl|webrip|blu-?ray|brrip|bdrip|dvdrip|dvdscr|screener|hdtv|hdrip|aac|ac3|ddp|dts|atmos|truehd|10bit|8bit|amzn|nf|dsnp|hulu|yify|rarbg)\\b")
+    private static let trailingCodecWords = try! NSRegularExpression(
+        pattern: "(?i)[\\s.\\-_]+\\b(ts|tc|proper|rerepack|repack|multi)\\s*$")
 
     static func parse(filename: String) -> ParsedMedia {
         let base = (filename as NSString).deletingPathExtension
@@ -92,11 +96,22 @@ enum MediaNameParser {
         if !t.contains(" ") {
             t = t.replacingOccurrences(of: "-", with: " ")
         }
+        t = stripTrailingCodecWords(t)
         t = stripCodecBrackets(t)
         t = codecWords.stringByReplacingMatches(in: t, range: NSRange(t.startIndex..., in: t), withTemplate: " ")
         t = spaces.stringByReplacingMatches(in: t, range: NSRange(t.startIndex..., in: t), withTemplate: " ")
         return t.trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "-_. "))
+    }
+
+    /// Strips ambiguous scene tags (PROPER, TS, …) from the END only, where
+    /// tags live — mid-title words (A Proper Marriage) survive.
+    private static func stripTrailingCodecWords(_ s: String) -> String {
+        var t = s
+        while let r = trailingCodecWords.firstMatch(in: t, range: NSRange(t.startIndex..., in: t)) {
+            t = (t as NSString).replacingCharacters(in: r.range, with: "")
+        }
+        return t
     }
 
     /// Removes bracketed segments only when they hold technical tags ([x265],

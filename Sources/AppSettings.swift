@@ -78,6 +78,9 @@ enum AppSettings {
 
     // MARK: - Reset
     static func resetAll() {
+        // hudBorderColor is a legacy key (setting removed); clear it so
+        // pre-removal custom values don't linger.
+        d.removeObject(forKey: "hudBorderColor")
         for key in [K.hudFontName, K.hudBold, K.hudItalic, K.hudBorderSize, K.progressColor, K.subFontName, K.subBold, K.subItalic,
                     K.subFontSize, K.subColor, K.subBorderColor, K.subBorderSize, K.subShadowOffset,
                     K.subOverrideASS] {
