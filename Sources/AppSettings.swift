@@ -13,7 +13,6 @@ enum AppSettings {
         static let hudFontName = "hudFontName"
         static let hudBold = "hudBold"
         static let hudItalic = "hudItalic"
-        static let hudBorderColor = "hudBorderColor"
         static let hudBorderSize = "hudBorderSize"
         static let progressColor = "progressColor"
         static let subFontName = "subFontName"
@@ -31,10 +30,9 @@ enum AppSettings {
     private static let defaults: [String: Any] = [
         K.hudFontName: "",
         K.hudBold: true,
-        K.hudItalic: true,
-        K.hudBorderColor: "0.0/0.0/0.0/1.0",
+        K.hudItalic: false,
         K.hudBorderSize: 1.0,
-        K.progressColor: "",
+        K.progressColor: "1.0/1.0/1.0/1.0",
         K.subFontName: "",
         K.subBold: true,
         K.subItalic: true,
@@ -50,7 +48,6 @@ enum AppSettings {
     static var hudFontName: String { d.string(forKey: K.hudFontName) ?? defaults[K.hudFontName] as! String }
     static var hudBold: Bool { d.object(forKey: K.hudBold) as? Bool ?? defaults[K.hudBold] as! Bool }
     static var hudItalic: Bool { d.object(forKey: K.hudItalic) as? Bool ?? defaults[K.hudItalic] as! Bool }
-    static var hudBorderColor: String { d.string(forKey: K.hudBorderColor) ?? defaults[K.hudBorderColor] as! String }
     static var hudBorderSize: Double { d.object(forKey: K.hudBorderSize) as? Double ?? defaults[K.hudBorderSize] as! Double }
     static var progressColor: String { d.string(forKey: K.progressColor) ?? defaults[K.progressColor] as! String }
     static var subFontName: String { d.string(forKey: K.subFontName) ?? defaults[K.subFontName] as! String }
@@ -67,7 +64,6 @@ enum AppSettings {
     static func setHudFontName(_ v: String) { d.set(v, forKey: K.hudFontName); notify() }
     static func setHudBold(_ v: Bool) { d.set(v, forKey: K.hudBold); notify() }
     static func setHudItalic(_ v: Bool) { d.set(v, forKey: K.hudItalic); notify() }
-    static func setHudBorderColor(_ v: String) { d.set(v, forKey: K.hudBorderColor); notify() }
     static func setHudBorderSize(_ v: Double) { d.set(v, forKey: K.hudBorderSize); notify() }
     static func setProgressColor(_ v: String) { d.set(v, forKey: K.progressColor); notify() }
     static func setSubFontName(_ v: String) { d.set(v, forKey: K.subFontName); notify() }
@@ -82,7 +78,10 @@ enum AppSettings {
 
     // MARK: - Reset
     static func resetAll() {
-        for key in [K.hudFontName, K.hudBold, K.hudItalic, K.hudBorderColor, K.hudBorderSize, K.progressColor, K.subFontName, K.subBold, K.subItalic,
+        // hudBorderColor is a legacy key (setting removed); clear it so
+        // pre-removal custom values don't linger.
+        d.removeObject(forKey: "hudBorderColor")
+        for key in [K.hudFontName, K.hudBold, K.hudItalic, K.hudBorderSize, K.progressColor, K.subFontName, K.subBold, K.subItalic,
                     K.subFontSize, K.subColor, K.subBorderColor, K.subBorderSize, K.subShadowOffset,
                     K.subOverrideASS] {
             d.removeObject(forKey: key)
@@ -100,13 +99,7 @@ enum AppSettings {
                        alpha: parts.count >= 4 ? CGFloat(parts[3]) : 1.0)
     }
 
-    static var hudBorderNSColor: NSColor {
-        let parts = hudBorderColor.split(separator: "/").compactMap { Double($0) }
-        guard parts.count >= 3 else { return .black }
-        return NSColor(red: CGFloat(parts[0]), green: CGFloat(parts[1]),
-                       blue: CGFloat(parts[2]),
-                       alpha: parts.count >= 4 ? CGFloat(parts[3]) : 1.0)
-    }
+    static var hudBorderNSColor: NSColor { .black }
 
     static func hudFont(named name: String, size: CGFloat, bold: Bool = false, italic: Bool = false) -> NSFont {
         var font = name.isEmpty ? .systemFont(ofSize: size) : (NSFont(name: name, size: size) ?? .systemFont(ofSize: size))

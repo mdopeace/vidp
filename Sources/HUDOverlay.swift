@@ -55,6 +55,8 @@ final class HUDOverlayView: NSView {
     private var isScrubbing = false
     private var wasPlayingBeforeScrub = false
     private var titleLabel: NSTextField!
+    private var metaLabel: NSTextField!
+    private var metaHeight: NSLayoutConstraint!
     private var smoothTimer: Timer?
     // mpv_command is a blocking main-thread call; seeking on every mouseMove
     // stalls the slider's tracking loop, making the knob feel heavy. Coalesce.
@@ -163,6 +165,16 @@ final class HUDOverlayView: NSView {
         addSubview(titleLabel)
         applyTitleStyle()
 
+        // Meta line above the title: S01E01 / year at half size, half opacity
+        metaLabel = NSTextField(labelWithString: "")
+        metaLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: 20,
+                                             bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        metaLabel.textColor = NSColor(white: 1, alpha: 0.5)
+        metaLabel.lineBreakMode = .byTruncatingTail
+        metaLabel.translatesAutoresizingMaskIntoConstraints = false
+        metaLabel.isHidden = true
+        addSubview(metaLabel)
+
         // Bottom progress bar
         let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
 
@@ -217,9 +229,19 @@ final class HUDOverlayView: NSView {
             titleLabel.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
             titleLabel.bottomAnchor.constraint(equalTo: barRow.topAnchor, constant: -8),
             titleLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.7),
+            metaLabel.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
+            metaLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.7),
             elapsedLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
             remainingLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
         ])
+
+        // Hidden views still occupy Auto Layout space: keep the meta→title
+        // pin always live and collapse to zero height while hidden. The 2pt
+        // pin remains, but the title is independently pinned so its position
+        // never shifts either way.
+        metaLabel.bottomAnchor.constraint(equalTo: titleLabel.topAnchor, constant: -2).isActive = true
+        metaHeight = metaLabel.heightAnchor.constraint(equalToConstant: 0)
+        metaHeight.isActive = true
 
         addTrackingArea(NSTrackingArea(
             rect: .zero,
@@ -244,6 +266,12 @@ final class HUDOverlayView: NSView {
             let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
                                            bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
             applyTitleStyle(font: font)
+        }
+        // Guard mirrors the title's: restyling rewrites attributedStringValue,
+        // which re-marks the view as needing layout.
+        let metaSize = max(12, size * 2 / 3)
+        if metaLabel.font?.pointSize != metaSize {
+            applyMetaStyle(size: metaSize)
         }
         volumeLabel?.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size * Self.osdScale,
                                                 bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
@@ -447,6 +475,7 @@ final class HUDOverlayView: NSView {
     @objc private func settingsDidChange() {
         progressBar.trackFillColor = AppSettings.progressNSColor
         applyTitleStyle()
+        applyMetaStyle(size: max(12, (titleLabel.font?.pointSize ?? 30) * 2 / 3))
         needsLayout = true
     }
 
@@ -741,10 +770,14 @@ final class HUDOverlayView: NSView {
         }
     }
 
-    func setTitle(_ title: String) {
+    func setTitle(_ title: String, meta: String? = nil) {
         let font = titleLabel.font ?? AppSettings.hudFont(named: AppSettings.hudFontName, size: 30,
                                                           bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         applyTitleStyle(font: font, text: title)
+        metaLabel.stringValue = meta ?? ""
+        metaLabel.isHidden = meta?.isEmpty ?? true
+        metaHeight.isActive = metaLabel.isHidden
+        applyMetaStyle(size: max(12, font.pointSize * 2 / 3))
         titleLabel.needsLayout = true
         needsLayout = true
     }
@@ -782,5 +815,35 @@ final class HUDOverlayView: NSView {
             .shadow: halo,
         ]
         titleLabel.attributedStringValue = NSAttributedString(string: string, attributes: attrs)
+    }
+
+    private func applyMetaStyle(size: CGFloat) {
+        let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
+                                       bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        // Font first: layout() keys convergence on pointSize, and an empty
+        // meta must still converge instead of re-styling every pass.
+        metaLabel.font = font
+        let string = metaLabel.attributedStringValue.string
+        guard !string.isEmpty else {
+            metaLabel.attributedStringValue = NSAttributedString(string: "")
+            return
+        }
+        guard AppSettings.hudBorderSize > 0 else {
+            metaLabel.textColor = NSColor(white: 1, alpha: 0.5)
+            metaLabel.stringValue = string
+            return
+        }
+        // Same zero-offset halo as the title so the small dim line survives
+        // bright scenes; alpha follows the 50% text dimming.
+        let halo = NSShadow()
+        halo.shadowColor = NSColor(white: 0, alpha: 0.5)
+        halo.shadowBlurRadius = CGFloat(AppSettings.hudBorderSize) * 2
+        halo.shadowOffset = .zero
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor(white: 1, alpha: 0.5),
+            .shadow: halo,
+        ]
+        metaLabel.attributedStringValue = NSAttributedString(string: string, attributes: attrs)
     }
 }
