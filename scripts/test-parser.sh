@@ -17,6 +17,8 @@ check(MediaNameParser.parse(filename: "Dune.Part.Two.2024.2160p.WEB-DL.mkv").pre
 check(MediaNameParser.parse(filename: "Breaking.Bad.S01E02.mp4").prettyTitle(), "Breaking Bad S01E02", "tv-s01e02")
 check(MediaNameParser.parse(filename: "Show.1x02.mkv").prettyTitle(), "Show S01E02", "tv-1x02")
 check(MediaNameParser.parse(filename: "Avatar (2009).mp4").prettyTitle(), "Avatar (2009)", "movie-paren-year")
+check(MediaNameParser.parse(filename: "Dune2024.mkv").prettyTitle(), "Dune (2024)", "movie-nosep-year")
+check(MediaNameParser.parse(filename: "2012.mkv").prettyTitle(), "2012", "movie-bare-year")
 check(MediaNameParser.parse(filename: "Some Random Video.mkv").prettyTitle(), "Some Random Video", "fallback")
 check(MediaNameParser.parse(filename: "Breaking-Bad-S01E01.mkv").prettyTitle(), "Breaking Bad S01E01", "tv-dash")
 check(MediaNameParser.parse(filename: "Spider-Man.No.Way.Home.2021.mkv").prettyTitle(), "Spider-Man No Way Home (2021)", "movie-hyphen-kept")

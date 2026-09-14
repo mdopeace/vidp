@@ -34,7 +34,7 @@ struct ParsedMedia {
 enum MediaNameParser {
     private static let sxxexx = try! NSRegularExpression(pattern: "^(.+?)[.\\s_\\-]+[Ss](\\d{1,2})[Ee](\\d{1,3})\\b")
     private static let nxm = try! NSRegularExpression(pattern: "^(.+?)[.\\s_\\-]+(\\d{1,2})[xX](\\d{1,3})\\b")
-    private static let yearPat = try! NSRegularExpression(pattern: "^(.+?)[.\\s_\\-(\\[]+(19\\d{2}|20\\d{2})\\b")
+    private static let yearPat = try! NSRegularExpression(pattern: "^(.+?)[.\\s_\\-(\\[]*(19\\d{2}|20\\d{2})\\b")
     private static let brackets = try! NSRegularExpression(pattern: "\\[[^\\]]*\\]|\\([^\\)]*\\)")
     private static let spaces = try! NSRegularExpression(pattern: "\\s{2,}")
     // Strictly technical tags — never edition words (Final Cut, Extended, …)
@@ -59,10 +59,14 @@ enum MediaNameParser {
             return ParsedMedia(title: clean(title),
                                year: year, season: Int(m[1]), episode: Int(m[2]))
         }
-        // Movie: Title.2024 / Title (2009) / Title [2024]
+        // Movie: Title.2024 / Title (2009) / Title [2024] / Title2024.
+        // The cleaned title must be non-empty (bare "2012" is a name, not a year).
         if let m = match(base, yearPat) {
-            return ParsedMedia(title: clean(m[0]),
-                               year: Int(m[1]), season: nil, episode: nil)
+            let t = clean(m[0])
+            if !t.isEmpty {
+                return ParsedMedia(title: t,
+                                   year: Int(m[1]), season: nil, episode: nil)
+            }
         }
         return ParsedMedia(title: clean(base),
                            year: nil, season: nil, episode: nil)

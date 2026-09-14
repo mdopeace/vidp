@@ -236,8 +236,9 @@ final class HUDOverlayView: NSView {
         ])
 
         // Hidden views still occupy Auto Layout space: keep the meta→title
-        // pin always live and collapse to zero height while hidden —
-        // fully determined in both states, zero gap when hidden.
+        // pin always live and collapse to zero height while hidden. The 2pt
+        // pin remains, but the title is independently pinned so its position
+        // never shifts either way.
         metaLabel.bottomAnchor.constraint(equalTo: titleLabel.topAnchor, constant: -2).isActive = true
         metaHeight = metaLabel.heightAnchor.constraint(equalToConstant: 0)
         metaHeight.isActive = true
@@ -819,9 +820,17 @@ final class HUDOverlayView: NSView {
     private func applyMetaStyle(size: CGFloat) {
         let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
                                        bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        // Font first: layout() keys convergence on pointSize, and an empty
+        // meta must still converge instead of re-styling every pass.
+        metaLabel.font = font
         let string = metaLabel.attributedStringValue.string
         guard !string.isEmpty else {
             metaLabel.attributedStringValue = NSAttributedString(string: "")
+            return
+        }
+        guard AppSettings.hudBorderSize > 0 else {
+            metaLabel.textColor = NSColor(white: 1, alpha: 0.5)
+            metaLabel.stringValue = string
             return
         }
         // Same zero-offset halo as the title so the small dim line survives
@@ -835,7 +844,6 @@ final class HUDOverlayView: NSView {
             .foregroundColor: NSColor(white: 1, alpha: 0.5),
             .shadow: halo,
         ]
-        metaLabel.font = font
         metaLabel.attributedStringValue = NSAttributedString(string: string, attributes: attrs)
     }
 }
