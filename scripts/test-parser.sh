@@ -30,9 +30,13 @@ check(MediaNameParser.parse(filename: "Some.Movie.HDR.x264.mkv").prettyTitle(), 
 check(MediaNameParser.parse(filename: "A.Proper.Marriage.2020.mkv").prettyTitle(), "A Proper Marriage (2020)", "movie-title-word")
 check(MediaNameParser.parse(filename: "Show.S01E01.PROPER.1080p.mkv").prettyTitle(), "Show S01E01", "tv-trailing-tag")
 check(MediaNameParser.parse(filename: "Show.2012.S01E02.mkv").prettyTitle(), "Show (2012) S01E02", "tv-year")
+check(MediaNameParser.parse(filename: "Onimusha.S01.Complete.Demon.1080p.x264.Hindi.Japanese.English.Vegamovies.To.mkv").prettyTitle(), "Onimusha S01", "tv-pack")
+check(MediaNameParser.parse(filename: "Show.2020.S01.COMPLETE.mkv").prettyTitle(), "Show (2020) S01", "tv-pack-year-before")
+check(MediaNameParser.parse(filename: "Show.S01.2020.COMPLETE.mkv").prettyTitle(), "Show (2020) S01", "tv-pack-year-after")
 check(MediaNameParser.parse(filename: "Breaking.Bad.S01E02.mp4").metaLine ?? "nil", "S01E02", "meta-tv")
 check(MediaNameParser.parse(filename: "Dune.Part.Two.2024.mkv").metaLine ?? "nil", "2024", "meta-movie")
 check(MediaNameParser.parse(filename: "Show.2012.S01E02.mkv").metaLine ?? "nil", "2012 · S01E02", "meta-tv-year")
+check(MediaNameParser.parse(filename: "Onimusha.S01.Complete.Demon.1080p.x264.Hindi.Japanese.English.Vegamovies.To.mkv").metaLine ?? "nil", "S01", "meta-tv-pack")
 check(MediaNameParser.parse(filename: "Some Random Video.mkv").metaLine ?? "nil", "nil", "meta-none")
 if failures > 0 { print("\(failures) FAILURES"); exit(1) }
 print("ALL PASS")

@@ -46,6 +46,7 @@ enum MediaNameParser {
     private static let sxxexx = try! NSRegularExpression(pattern: "^(.+?)[.\\s_\\-]+[Ss](\\d{1,2})[Ee](\\d{1,3})\\b")
     private static let nxm = try! NSRegularExpression(pattern: "^(.+?)[.\\s_\\-]+(\\d{1,2})[xX](\\d{1,3})\\b")
     private static let sOnly = try! NSRegularExpression(pattern: "^(.+?)[.\\s_\\-]+[Ss](\\d{1,2})\\b")
+    private static let anyYear = try! NSRegularExpression(pattern: "\\b(19\\d{2}|20\\d{2})\\b")
     private static let yearPat = try! NSRegularExpression(pattern: "^(.+?)[.\\s_\\-(\\[]*(19\\d{2}|20\\d{2})\\b")
     private static let brackets = try! NSRegularExpression(pattern: "\\[[^\\]]*\\]|\\([^\\)]*\\)")
     private static let spaces = try! NSRegularExpression(pattern: "\\s{2,}")
@@ -72,11 +73,12 @@ enum MediaNameParser {
                                year: year, season: Int(m[1]), episode: Int(m[2]))
         }
         // Season pack: Show.S01 / Show.S01.COMPLETE — no episode number,
-        // everything from the season marker on is pack/technical junk.
+        // everything from the season marker on is pack/technical junk,
+        // except a year (Show.S01.2020) which the old movie-year path kept.
         if let m = match(base, sOnly) {
             let (title, year) = splitYear(m[0])
             return ParsedMedia(title: clean(title),
-                               year: year, season: Int(m[1]), episode: nil)
+                               year: year ?? yearAfterSeason(in: base), season: Int(m[1]), episode: nil)
         }
         // Movie: Title.2024 / Title (2009) / Title [2024] / Title2024.
         // The cleaned title must be non-empty (bare "2012" is a name, not a year).
@@ -97,6 +99,16 @@ enum MediaNameParser {
             return (m[0], y)
         }
         return (s, nil)
+    }
+
+    /// Year after the season marker (Show.S01.2020) — prefix year wins.
+    private static func yearAfterSeason(in base: String) -> Int? {
+        guard let r = sOnly.firstMatch(in: base, range: NSRange(base.startIndex..., in: base)) else { return nil }
+        let suffix = (base as NSString).substring(from: r.range.location + r.range.length)
+        if let m = match(suffix, anyYear), let y = Int(m[0]) {
+            return y
+        }
+        return nil
     }
 
     private static func match(_ s: String, _ re: NSRegularExpression) -> [String]? {
