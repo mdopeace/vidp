@@ -25,17 +25,14 @@ final class SettingsPopoverView: NSView {
     private var subShadowLabel: NSTextField!
     private var overrideCheck: NSButton!
 
-    private static let accent = NSColor.systemBlue
-
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        layer?.backgroundColor = NSColor.clear.cgColor
 
         let blur = NSVisualEffectView()
-        blur.material = .hudWindow
+        blur.material = .popover
         blur.state = .active
-        blur.blendingMode = .withinWindow
+        blur.blendingMode = .behindWindow
         blur.translatesAutoresizingMaskIntoConstraints = false
         addSubview(blur)
         NSLayoutConstraint.activate([
@@ -66,13 +63,17 @@ final class SettingsPopoverView: NSView {
         stack.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
 
-        // Header
-        let header = makeLabel("Settings", size: 22, weight: .bold, color: .white)
-        stack.addArrangedSubview(header)
-        spacer(stack)
+        // Grouped rows: each box owns a vertical stack; the boxes join
+        // the column where the old flat rows + text headers used to be.
+        // (The sheet titlebar already says Settings, so no in-content header.)
+        let osdRows = NSStackView()
+        osdRows.orientation = .vertical
+        osdRows.spacing = 8
+        let subRows = NSStackView()
+        subRows.orientation = .vertical
+        subRows.spacing = 8
 
         // Title section
-        stack.addArrangedSubview(makeLabel("Title", size: 13, weight: .semibold, color: .white))
         let hudRow = makeFontRow(fonts: fonts, selected: AppSettings.hudFontName)
         hudFontPopup = hudRow.popup
         hudSystemCheck = hudRow.check
@@ -80,51 +81,56 @@ final class SettingsPopoverView: NSView {
         hudFontPopup.action = #selector(hudFontChanged)
         hudSystemCheck.target = self
         hudSystemCheck.action = #selector(hudSystemToggled)
-        stack.addArrangedSubview(makeRow(hudRow.stack))
+        osdRows.addArrangedSubview(makeRow(hudRow.stack))
 
         hudBoldCheck = makeStyleCheck("Bold", #selector(hudBoldToggled), AppSettings.hudBold)
         hudItalicCheck = makeStyleCheck("Italic", #selector(hudItalicToggled), AppSettings.hudItalic)
-        stack.addArrangedSubview(makeStyleRow(hudSystemCheck, hudBoldCheck, hudItalicCheck))
+        osdRows.addArrangedSubview(makeStyleRow(hudSystemCheck, hudBoldCheck, hudItalicCheck))
 
-        // Title shadow
+        // Title outline (halo)
         let hudBorderRow = NSStackView()
         hudBorderRow.spacing = 8
         hudBorderRow.alignment = .centerY
         hudBorderRow.distribution = .fill
-        hudBorderRow.addArrangedSubview(rowLabel("Shadow"))
+        hudBorderRow.addArrangedSubview(rowLabel("Outline"))
         hudBorderSlider = NSSlider(value: AppSettings.hudBorderSize, minValue: 0, maxValue: 10,
                                    target: self, action: #selector(hudBorderChanged))
         flexSlider(hudBorderSlider)
         hudBorderRow.addArrangedSubview(hudBorderSlider)
-        hudBorderLabel = makeLabel(String(Int(AppSettings.hudBorderSize)), size: 12, color: .white)
+        hudBorderLabel = makeLabel(String(Int(AppSettings.hudBorderSize)), size: 12)
         hudBorderLabel.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([hudBorderLabel.widthAnchor.constraint(equalToConstant: 28)])
         hudBorderRow.addArrangedSubview(hudBorderLabel)
-        stack.addArrangedSubview(makeRow(hudBorderRow))
+        osdRows.addArrangedSubview(makeRow(hudBorderRow))
 
         // Progress bar fill
         let progressRow = NSStackView()
         progressRow.spacing = 8
         progressRow.alignment = .centerY
         progressRow.distribution = .fill
-        progressRow.addArrangedSubview(rowLabel("Progress"))
+        progressRow.addArrangedSubview(rowLabel("Progress Bar"))
         progressColorWell = colorWell(hex: AppSettings.progressColor.isEmpty ? "0.28/0.53/1.0/1.0" : AppSettings.progressColor)
         progressColorWell.target = self
         progressColorWell.action = #selector(progressColorChanged)
         progressColorWell.isEnabled = !AppSettings.progressColor.isEmpty
         progressRow.addArrangedSubview(progressColorWell)
-        progressSystemCheck = NSButton(checkboxWithTitle: "System", target: self, action: #selector(progressSystemToggled))
+        progressSystemCheck = NSButton(checkboxWithTitle: "Automatic", target: self, action: #selector(progressSystemToggled))
         progressSystemCheck.state = AppSettings.progressColor.isEmpty ? .on : .off
-        progressSystemCheck.contentTintColor = NSColor(white: 0.8, alpha: 1)
         progressRow.addArrangedSubview(progressSystemCheck)
         progressRow.addArrangedSubview(flexSpacer())
-        stack.addArrangedSubview(makeRow(progressRow))
+        osdRows.addArrangedSubview(makeRow(progressRow))
 
-        spacer(stack)
+        // Box titles can't breathe (AppKit draws them tight to the border),
+        // so the boxes go untitled and plain labels own the spacing.
+        stack.addArrangedSubview(makeLabel("On-Screen Display", size: 13, weight: .semibold))
+        let osdBox = NSBox()
+        osdBox.titlePosition = .noTitle
+        osdBox.boxType = .primary
+        osdBox.contentViewMargins = NSSize(width: 8, height: 6)
+        osdBox.contentView = osdRows
+        stack.addArrangedSubview(osdBox)
 
         // Subtitles section
-        stack.addArrangedSubview(makeLabel("Subtitles", size: 13, weight: .semibold, color: .white))
-
         // Sub font
         let subRow = makeFontRow(fonts: fonts, selected: AppSettings.subFontName)
         subFontPopup = subRow.popup
@@ -133,11 +139,11 @@ final class SettingsPopoverView: NSView {
         subFontPopup.action = #selector(subFontChanged)
         subSystemCheck.target = self
         subSystemCheck.action = #selector(subSystemToggled)
-        stack.addArrangedSubview(makeRow(subRow.stack))
+        subRows.addArrangedSubview(makeRow(subRow.stack))
 
         subBoldCheck = makeStyleCheck("Bold", #selector(subBoldToggled), AppSettings.subBold)
         subItalicCheck = makeStyleCheck("Italic", #selector(subItalicToggled), AppSettings.subItalic)
-        stack.addArrangedSubview(makeStyleRow(subSystemCheck, subBoldCheck, subItalicCheck))
+        subRows.addArrangedSubview(makeStyleRow(subSystemCheck, subBoldCheck, subItalicCheck))
 
         // Sub size
         let sizeRow = NSStackView()
@@ -149,46 +155,46 @@ final class SettingsPopoverView: NSView {
                                   target: self, action: #selector(subSizeChanged))
         flexSlider(subSizeSlider)
         sizeRow.addArrangedSubview(subSizeSlider)
-        subSizeLabel = makeLabel(String(Int(AppSettings.subFontSize)), size: 12, color: .white)
+        subSizeLabel = makeLabel(String(Int(AppSettings.subFontSize)), size: 12)
         subSizeLabel.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([subSizeLabel.widthAnchor.constraint(equalToConstant: 28)])
         sizeRow.addArrangedSubview(subSizeLabel)
-        stack.addArrangedSubview(makeRow(sizeRow))
+        subRows.addArrangedSubview(makeRow(sizeRow))
 
         // Colors
         let colorRow = NSStackView()
-        colorRow.spacing = 16
+        colorRow.spacing = 8
         colorRow.alignment = .centerY
         colorRow.distribution = .fill
         colorRow.addArrangedSubview(rowLabel("Color"))
-        colorRow.addArrangedSubview(makeLabel("Text", size: 12, color: NSColor(white: 1, alpha: 0.6)))
+        colorRow.addArrangedSubview(makeLabel("Text", size: 12, color: .secondaryLabelColor))
         subColorWell = colorWell(hex: AppSettings.subColor)
         subColorWell.target = self
         subColorWell.action = #selector(subColorChanged)
         colorRow.addArrangedSubview(subColorWell)
-        colorRow.addArrangedSubview(makeLabel("Border", size: 12, color: NSColor(white: 1, alpha: 0.6)))
+        colorRow.addArrangedSubview(makeLabel("Outline", size: 12, color: .secondaryLabelColor))
         subBorderColorWell = colorWell(hex: AppSettings.subBorderColor)
         subBorderColorWell.target = self
         subBorderColorWell.action = #selector(subBorderColorChanged)
         colorRow.addArrangedSubview(subBorderColorWell)
         colorRow.addArrangedSubview(flexSpacer())
-        stack.addArrangedSubview(makeRow(colorRow))
+        subRows.addArrangedSubview(makeRow(colorRow))
 
-        // Border size
+        // Outline size
         let borderRow = NSStackView()
         borderRow.spacing = 8
         borderRow.alignment = .centerY
         borderRow.distribution = .fill
-        borderRow.addArrangedSubview(rowLabel("Border"))
+        borderRow.addArrangedSubview(rowLabel("Outline"))
         subBorderSlider = NSSlider(value: AppSettings.subBorderSize, minValue: 0, maxValue: 10,
                                     target: self, action: #selector(subBorderChanged))
         flexSlider(subBorderSlider)
         borderRow.addArrangedSubview(subBorderSlider)
-        subBorderLabel = makeLabel(String(Int(AppSettings.subBorderSize)), size: 12, color: .white)
+        subBorderLabel = makeLabel(String(Int(AppSettings.subBorderSize)), size: 12)
         subBorderLabel.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([subBorderLabel.widthAnchor.constraint(equalToConstant: 28)])
         borderRow.addArrangedSubview(subBorderLabel)
-        stack.addArrangedSubview(makeRow(borderRow))
+        subRows.addArrangedSubview(makeRow(borderRow))
 
         // Shadow
         let shadowRow = NSStackView()
@@ -200,23 +206,29 @@ final class SettingsPopoverView: NSView {
                                     target: self, action: #selector(subShadowChanged))
         flexSlider(subShadowSlider)
         shadowRow.addArrangedSubview(subShadowSlider)
-        subShadowLabel = makeLabel(String(Int(AppSettings.subShadowOffset)), size: 12, color: .white)
+        subShadowLabel = makeLabel(String(Int(AppSettings.subShadowOffset)), size: 12)
         subShadowLabel.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([subShadowLabel.widthAnchor.constraint(equalToConstant: 28)])
         shadowRow.addArrangedSubview(subShadowLabel)
-        stack.addArrangedSubview(makeRow(shadowRow))
+        subRows.addArrangedSubview(makeRow(shadowRow))
 
         // Override ASS
-        overrideCheck = NSButton(checkboxWithTitle: "Override ASS styles", target: self, action: #selector(overrideChanged))
+        overrideCheck = NSButton(checkboxWithTitle: "Override styled subtitles", target: self, action: #selector(overrideChanged))
         overrideCheck.state = AppSettings.subOverrideASS ? .on : .off
-        overrideCheck.contentTintColor = .white
-        stack.addArrangedSubview(makeRow(overrideWrap(overrideCheck)))
+        subRows.addArrangedSubview(makeRow(overrideWrap(overrideCheck)))
+
+        stack.addArrangedSubview(makeLabel("Subtitles", size: 13, weight: .semibold))
+        let subBox = NSBox()
+        subBox.titlePosition = .noTitle
+        subBox.boxType = .primary
+        subBox.contentViewMargins = NSSize(width: 8, height: 6)
+        subBox.contentView = subRows
+        stack.addArrangedSubview(subBox)
 
         spacer(stack)
 
         // Reset + Done
         let resetBtn = NSButton(title: "Reset to Defaults", target: self, action: #selector(resetTapped))
-        resetBtn.contentTintColor = NSColor(white: 0.7, alpha: 1)
         let doneBtn = NSButton(title: "Done", target: self, action: #selector(doneTapped))
         doneBtn.keyEquivalent = "\r"
         // Native sheets trailing-align actions (default button last).
@@ -228,12 +240,21 @@ final class SettingsPopoverView: NSView {
 
         // Constraints
         // Rows hug content by default, leaving the column's right side
-        // empty — pin the row wrappers (the only NSStackViews added
-        // directly) to the column width minus the 20pt edge insets, so
+        // empty — pin the boxes (the only non-row views added directly)
+        // to the column width minus the 20pt edge insets, and pin each
+        // row wrapper inside the boxes to its box's rows stack, so
         // sliders and flex spacers absorb the slack instead. Done here,
-        // once both anchors share the hierarchy.
+        // once all anchors share the hierarchy.
         for case let row as NSStackView in stack.arrangedSubviews {
             row.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40).isActive = true
+        }
+        osdBox.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40).isActive = true
+        subBox.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40).isActive = true
+        for case let row as NSStackView in osdRows.arrangedSubviews {
+            row.widthAnchor.constraint(equalTo: osdRows.widthAnchor).isActive = true
+        }
+        for case let row as NSStackView in subRows.arrangedSubviews {
+            row.widthAnchor.constraint(equalTo: subRows.widthAnchor).isActive = true
         }
         NSLayoutConstraint.activate([
             scroll.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -268,7 +289,7 @@ final class SettingsPopoverView: NSView {
     // MARK: - Helpers
 
     private func makeLabel(_ text: String, size: CGFloat, weight: NSFont.Weight = .regular,
-                           color: NSColor = .white) -> NSTextField {
+                           color: NSColor = .labelColor) -> NSTextField {
         let l = NSTextField(labelWithString: text)
         l.font = .systemFont(ofSize: size, weight: weight)
         l.textColor = color
@@ -276,19 +297,21 @@ final class SettingsPopoverView: NSView {
     }
 
     // HIG form labels: right-aligned, sentence case, trailing colon —
-    // the colon edge forms the column the controls hang off.
+    // the colon edge forms the column the controls hang off. 84pt fits
+    // the widest label ("Progress Bar:"); sliders absorb the difference
+    // so total width is unchanged.
     private func rowLabel(_ text: String) -> NSTextField {
-        let l = makeLabel(text.hasSuffix(":") ? text : text + ":", size: 12, color: NSColor(white: 1, alpha: 0.6))
+        let l = makeLabel(text.hasSuffix(":") ? text : text + ":", size: 12, color: .secondaryLabelColor)
         l.alignment = .right
         l.translatesAutoresizingMaskIntoConstraints = false
-        l.widthAnchor.constraint(equalToConstant: 56).isActive = true
+        l.widthAnchor.constraint(equalToConstant: 84).isActive = true
         return l
     }
 
     private func colGuard() -> NSView {
         let v = NSView()
         v.translatesAutoresizingMaskIntoConstraints = false
-        v.widthAnchor.constraint(equalToConstant: 56).isActive = true
+        v.widthAnchor.constraint(equalToConstant: 84).isActive = true
         return v
     }
 
@@ -319,7 +342,6 @@ final class SettingsPopoverView: NSView {
     private func makeStyleCheck(_ title: String, _ action: Selector, _ on: Bool) -> NSButton {
         let check = NSButton(checkboxWithTitle: title, target: self, action: action)
         check.state = on ? .on : .off
-        check.contentTintColor = NSColor(white: 0.8, alpha: 1)
         return check
     }
 
@@ -338,37 +360,15 @@ final class SettingsPopoverView: NSView {
         popup.font = .systemFont(ofSize: 12)
         if let idx = fonts.firstIndex(of: selected) { popup.selectItem(at: idx) }
         popup.isEnabled = !selected.isEmpty
-        // No fixed width: the wrap stretches to fill the row so full font
-        // names stay visible; the 56pt label keeps it column-aligned.
-        let wrap = wrapInBox(popup)
 
-        let check = NSButton(checkboxWithTitle: "System", target: nil, action: nil)
+        let check = NSButton(checkboxWithTitle: "System Font", target: nil, action: nil)
         check.state = selected.isEmpty ? .on : .off
-        check.contentTintColor = NSColor(white: 0.8, alpha: 1)
 
-        let row = NSStackView(views: [rowLabel("Font"), wrap])
+        let row = NSStackView(views: [rowLabel("Font"), popup])
         row.spacing = 8
         row.alignment = .centerY
         row.distribution = .fill
         return (row, popup, check)
-    }
-
-    private func wrapInBox(_ view: NSView) -> NSView {
-        let box = NSView()
-        box.wantsLayer = true
-        box.layer?.backgroundColor = NSColor(white: 0.25, alpha: 1).cgColor
-        box.layer?.cornerRadius = 6
-        box.translatesAutoresizingMaskIntoConstraints = false
-        box.addSubview(view)
-        view.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            view.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 8),
-            view.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -8),
-            view.topAnchor.constraint(equalTo: box.topAnchor, constant: 4),
-            view.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -4),
-            box.heightAnchor.constraint(greaterThanOrEqualToConstant: 28),
-        ])
-        return box
     }
 
     private func makeRow(_ view: NSView) -> NSStackView {
@@ -389,8 +389,6 @@ final class SettingsPopoverView: NSView {
     private func colorWell(hex: String) -> NSColorWell {
         let well = PinnedColorWell()
         well.color = colorFromMPV(hex)
-        well.wantsLayer = true
-        well.layer?.cornerRadius = 4
         well.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             well.widthAnchor.constraint(equalToConstant: 36),
