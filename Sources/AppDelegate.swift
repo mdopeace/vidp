@@ -579,7 +579,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
         let alert = NSAlert()
         alert.messageText = "Vidp"
-        alert.informativeText = version.isEmpty ? "Plays anything. Judges nothing." : "Version \(version)\n\nPlays anything. Judges nothing."
+        let tagline = "Plays anything. Judges nothing."
+        let details = "Minimal mpv-based player for macOS.\nSupports mp4, mkv, webm, mov, m4v, avi.\n\ngithub.com/mdopeace/vidp"
+        alert.informativeText = version.isEmpty ? "\(tagline)\n\n\(details)" : "Version \(version)\n\n\(tagline)\n\n\(details)"
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         func center(_ view: NSView) {
