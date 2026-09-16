@@ -23,6 +23,13 @@ final class NudgeUpLabel: NSTextField {
     }
 }
 
+/// OSD indicator (volume/skip) — display-only, never intercepts clicks.
+/// Sits centered over the transport buttons; a plain NSStackView here eats
+/// clicks even at alpha 0 since AppKit hit-testing ignores transparency.
+final class ClickThroughStackView: NSStackView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
 final class HUDOverlayView: NSView {
     private var hideTimer: Timer?
     private var displayTimer: Timer?

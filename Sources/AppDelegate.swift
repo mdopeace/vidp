@@ -97,7 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                                               bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         volumeLabel.textColor = NSColor(white: 1, alpha: 0.5)
         volumeLabel.translatesAutoresizingMaskIntoConstraints = false
-        let volumeStack = NSStackView(views: [volumeIconView, volumeLabel])
+        let volumeStack = ClickThroughStackView(views: [volumeIconView, volumeLabel])
         volumeStack.orientation = .horizontal
         volumeStack.spacing = 10 * HUDOverlayView.osdScale
         volumeStack.alignment = .centerY
