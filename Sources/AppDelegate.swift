@@ -157,7 +157,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             img?.isTemplate = true
             return img
         }
-        appMenu.addItem(withTitle: "About Vidp", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        let aboutItem = appMenu.addItem(withTitle: "About Vidp", action: #selector(showAbout), keyEquivalent: "")
+        aboutItem.target = self
+        aboutItem.image = menuIcon("info.circle")
         let updatesItem = appMenu.addItem(withTitle: "Check for Updates\u{2026}", action: #selector(checkForUpdates), keyEquivalent: "")
         updatesItem.target = self
         updatesItem.image = menuIcon("arrow.triangle.2.circlepath")
@@ -572,6 +574,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     }
 
     // MARK: - Version Check
+
+    @objc private func showAbout() {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        let alert = NSAlert()
+        alert.messageText = "Vidp"
+        alert.informativeText = "Vidp v\(version)\n\nPlays anything. Judges nothing."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        func center(_ view: NSView) {
+            (view as? NSTextField)?.alignment = .center
+            view.subviews.forEach(center)
+        }
+        if let content = alert.window.contentView { center(content) }
+        alert.runModal()
+    }
 
     @objc private func checkForUpdates() {
         performVersionCheck(showUpToDate: true)
