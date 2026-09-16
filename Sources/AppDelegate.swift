@@ -626,7 +626,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             DispatchQueue.main.async {
                 let alert = NSAlert()
                 alert.messageText = "Update Available"
-                alert.informativeText = "A new version of Vidp is available: v\(latestVersion) (you have v\(currentVersion))."
+                let playingNote = (self.hudOverlay?.isFileLoaded ?? false)
+                    ? " Your video will be closed and reopened where you left off."
+                    : ""
+                alert.informativeText = "A new version of Vidp is available: v\(latestVersion) (you have v\(currentVersion)).\(playingNote)"
                 alert.alertStyle = .informational
                 alert.addButton(withTitle: "Download")
                 alert.addButton(withTitle: "Later")
@@ -757,8 +760,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
         try? fileManager.removeItem(at: backupURL)
         try? fileManager.removeItem(at: temporaryDirectory)
-        DispatchQueue.main.async {
-            NSWorkspace.shared.open(self.applicationPath)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            // Main-queue capture: the download ran on a URLSession thread,
+            // so reading here avoids racing a video switch mid-download.
+            // Flush position first: the 3s timer may not have run yet.
+            self.savePosition()
+            let reopenPath = self.currentFilePath
+            let relaunch = Process()
+            relaunch.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            // ponytail: --args reopens the playing video; cold-start path + saved position resume it
+            relaunch.arguments = reopenPath.map { ["-n", self.applicationPath.path, "--args", $0] }
+                ?? ["-n", self.applicationPath.path]
+            // ponytail: detached relaunch, parent exits immediately; launchd reaps child
+            do {
+                try relaunch.run()
+            } catch {
+                self.showUpdateError("The update was installed but the app could not be reopened: \(error.localizedDescription)")
+                return
+            }
             NSApp.terminate(nil)
         }
     }
