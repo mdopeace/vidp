@@ -579,7 +579,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
         let alert = NSAlert()
         alert.messageText = "Vidp"
-        alert.informativeText = "Vidp v\(version)\n\nPlays anything. Judges nothing."
+        alert.informativeText = version.isEmpty ? "Plays anything. Judges nothing." : "Version \(version)\n\nPlays anything. Judges nothing."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         func center(_ view: NSView) {
