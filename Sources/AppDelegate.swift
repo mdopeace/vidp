@@ -604,9 +604,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         guard let url = URL(string: urlString) else { return }
 
         let task = URLSession.shared.dataTask(with: url) { data, _, error in
-            guard let data, error == nil else { return }
-            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let tagName = json["tag_name"] as? String else { return }
+            guard let data, error == nil,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let tagName = json["tag_name"] as? String else {
+                if showUpToDate {
+                    DispatchQueue.main.async {
+                        let alert = NSAlert()
+                        alert.messageText = "Couldn't Check for Updates"
+                        alert.informativeText = "Couldn't reach the update server. You're still on Vidp v\(currentVersion)."
+                        alert.alertStyle = .informational
+                        alert.addButton(withTitle: "OK")
+                        alert.runModal()
+                    }
+                }
+                return
+            }
 
             let latestVersion = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
             guard latestVersion != currentVersion else {
