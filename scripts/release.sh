@@ -35,7 +35,7 @@ fi
 echo "Release v$CURRENT — choose bump:"
 select V in "$NEXT_PATCH" "$NEXT_MINOR" "$NEXT_MAJOR" "Abort"; do
     case "$V" in
-        "") echo "Aborted."; exit 1 ;;
+        "") continue ;;
         "Abort") echo "Aborted."; exit 1 ;;
         *) break ;;
     esac
