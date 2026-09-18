@@ -11,7 +11,7 @@
 # Usage:
 #   ./release.sh
 #
-# Requires: gh (authenticated), gum, push access to the tap repo.
+# Requires: gh (authenticated), push access to the tap repo.
 set -euo pipefail
 
 REPO=mdopeace/vidp            # app repo (origin)
@@ -32,9 +32,14 @@ if ! git diff --quiet; then
 fi
 
 # Version bump selector
-V=$(gum choose --header "Release v$CURRENT — choose bump:" \
-    "$NEXT_PATCH" "$NEXT_MINOR" "$NEXT_MAJOR")
-[[ -n "$V" ]] || { echo "Aborted."; exit 1; }
+echo "Release v$CURRENT — choose bump:"
+select V in "$NEXT_PATCH" "$NEXT_MINOR" "$NEXT_MAJOR" "Abort"; do
+    case "$V" in
+        "") echo "Aborted."; exit 1 ;;
+        "Abort") echo "Aborted."; exit 1 ;;
+        *) break ;;
+    esac
+done
 
 # Confirmation prompt
 echo "This will release v$V:"
@@ -43,7 +48,8 @@ echo "  - Create & merge PR to main"
 echo "  - Tag v$V"
 echo "  - Create GitHub Release"
 echo "  - Update Homebrew tap"
-gum confirm "Proceed?" || { echo "Aborted."; exit 1; }
+read -p "Proceed? [y/N] " confirm || { echo "Aborted."; exit 1; }
+[[ "$confirm" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
 
 # 1. Bump version in Info.plist (short + full)
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" Info.plist
