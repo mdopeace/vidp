@@ -24,10 +24,9 @@ Then launch:
 open "$(brew --prefix)/opt/vidp/libexec/vidp.app"
 ```
 
-To copy it into `/Applications`, replacing the existing `vidp.app` there:
+To install or update it in `/Applications`:
 
 ```sh
-rm -rf /Applications/vidp.app
 cp -R "$(brew --prefix)/opt/vidp/libexec/vidp.app" /Applications/
 ```
 
