@@ -30,6 +30,9 @@ To install or update it in `/Applications`:
 cp -R "$(brew --prefix)/opt/vidp/libexec/vidp.app" /Applications/
 ```
 
+This overwrites the files in an existing copy, but won't remove any that a new
+version no longer ships.
+
 Once installed, the app's **Check for Updates** command keeps that
 `/Applications` copy up to date. It does nothing when you're already on the
 latest version, so it can't do the initial install.
