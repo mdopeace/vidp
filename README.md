@@ -27,11 +27,13 @@ open "$(brew --prefix)/opt/vidp/libexec/vidp.app"
 To copy it into `/Applications`, replacing the existing `vidp.app` there:
 
 ```sh
+rm -rf /Applications/vidp.app
 cp -R "$(brew --prefix)/opt/vidp/libexec/vidp.app" /Applications/
 ```
 
-You can also use the app's **Check for Updates** command to install a release
-into `/Applications`.
+Once installed, the app's **Check for Updates** command keeps that
+`/Applications` copy up to date. It does nothing when you're already on the
+latest version, so it can't do the initial install.
 
 ### from source
 
