@@ -885,8 +885,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     /// it only attempts to minimize these cases, and `toggleFullScreen` may
     /// simply do nothing — so `closeCurrentVideo`'s `alphaValue = 0` can
     /// outlive every callback meant to undo it, leaving the app running with
-    /// no visible window. Becoming key is an AppKit-independent signal that
-    /// the user is looking at us, so restore there if we are still hidden.
+    /// no visible window. Becoming key is one signal that doesn't depend on
+    /// AppKit reporting the failure.
+    ///
+    /// ponytail: only catches failures involving a focus change. If the window
+    /// was already key when the exit was attempted — the common case, since the
+    /// user has to interact with it to press Back — nothing fires and recovery
+    /// needs a Cmd+Tab away and back. Ceiling, not a bug: a timeout after the
+    /// transition would cover the rest but can unmask mid-animation, which is
+    /// what the alphaValue = 0 exists to prevent. If that trade ever looks
+    /// worth revisiting, gate it on an NSWindowDidResize/completion signal
+    /// instead of a timer.
     func windowDidBecomeKey(_ notification: Notification) {
         guard window.alphaValue < 1 else { return }
         window.alphaValue = 1
