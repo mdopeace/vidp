@@ -681,7 +681,7 @@ final class HUDOverlayView: NSView {
     }
 
     private func setVolumeIcon(_ name: String) {
-        let size = volumeLabel?.font?.pointSize ?? (Self.titlePointSize * Self.osdScale)
+        let size = Self.titlePointSize * Self.osdScale
         let config = NSImage.SymbolConfiguration(pointSize: size, weight: .semibold)
         volumeIconView?.image =
             NSImage(systemSymbolName: name, accessibilityDescription: nil)?

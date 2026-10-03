@@ -82,7 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         let volumeIconView = NSImageView()
         volumeIconView.imageScaling = .scaleProportionallyUpOrDown
         volumeIconView.contentTintColor = NSColor(white: 1, alpha: 0.5)
-        let volumeIconConfig = NSImage.SymbolConfiguration(pointSize: 30 * HUDOverlayView.osdScale, weight: .semibold)
+        let volumeIconConfig = NSImage.SymbolConfiguration(pointSize: HUDOverlayView.titlePointSize * HUDOverlayView.osdScale, weight: .semibold)
         volumeIconView.image = NSImage(systemSymbolName: "speaker.wave.2", accessibilityDescription: nil)?
             .withSymbolConfiguration(volumeIconConfig)
         volumeIconView.translatesAutoresizingMaskIntoConstraints = false
@@ -93,8 +93,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             hudOverlay.volumeIconHeight,
         ])
         let volumeLabel = NSTextField(labelWithString: "")
-        volumeLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: 30 * HUDOverlayView.osdScale,
-                                              bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        volumeLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName,
+                                               size: HUDOverlayView.titlePointSize * HUDOverlayView.osdScale,
+                                               bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         volumeLabel.textColor = NSColor(white: 1, alpha: 0.5)
         volumeLabel.translatesAutoresizingMaskIntoConstraints = false
         let volumeStack = ClickThroughStackView(views: [volumeIconView, volumeLabel])
