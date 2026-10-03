@@ -871,14 +871,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         savedWindowSize = nil
     }
 
-    // Kept in the class body deliberately: the compiler offers to "move to an
-    // extension to silence this warning", but in an extension a mismatched
-    // signature produces no diagnostic at all. The warning is the only signal
-    // that a delegate callback is not being called, so don't silence it.
+    // Takes NSWindow, not Notification (unlike windowDidExitFullScreen directly
+    // above) — AppKit requires this exact signature, and a mismatch compiles to
+    // only a "nearly matches" warning. Kept in the class body deliberately:
+    // moving it to an extension to silence that warning silences it silently,
+    // and the warning is the only signal the callback is uncalled.
     func windowDidFailToExitFullScreen(_ window: NSWindow) {
-        // Never leave the window invisible if the exit transition fails.
-        // NSWindow, not Notification — AppKit passes a window here and a
-        // notification to windowDidExitFullScreen above.
         window.alphaValue = 1
     }
 
