@@ -74,10 +74,14 @@ final class HUDOverlayView: NSView {
     var volumeLabel: NSTextField!
     var volumeIconView: NSImageView!
     var volumeStack: NSStackView!
-    private var volumeIconName = "speaker.wave.2"
     // OSD icons match the 90 play-button presence: base boxes (40/55/48,
     // tuned so all three render the same height) scaled uniformly.
     static let osdScale: CGFloat = 2.25
+    // HUD type scale. Fixed, not window-relative: the window is sized from the
+    // video's aspect ratio (AppDelegate.playerDidUpdateVideoSize), so scaling
+    // by width made one title render at a different size for every video.
+    static let titlePointSize: CGFloat = 30
+    static let metaScale: CGFloat = 2.0 / 3.0
     var volumeIconWidth: NSLayoutConstraint!
     var volumeIconHeight: NSLayoutConstraint!
     var volumeCenterY: NSLayoutConstraint!
@@ -153,7 +157,7 @@ final class HUDOverlayView: NSView {
 
         // Title above progress bar, left-aligned
         titleLabel = NSTextField(labelWithString: "")
-        titleLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: 30,
+        titleLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: Self.titlePointSize,
                                           bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         titleLabel.textColor = .white
         titleLabel.lineBreakMode = .byWordWrapping
@@ -172,9 +176,10 @@ final class HUDOverlayView: NSView {
         addSubview(titleLabel)
         applyTitleStyle()
 
-        // Meta line above the title: S01E01 / year at half size, half opacity
+        // Meta line above the title: S01E01 / year at 2/3 size, half opacity
         metaLabel = NSTextField(labelWithString: "")
-        metaLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: 20,
+        metaLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName,
+                                             size: Self.titlePointSize * Self.metaScale,
                                              bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         metaLabel.textColor = NSColor(white: 1, alpha: 0.5)
         metaLabel.lineBreakMode = .byTruncatingTail
@@ -263,29 +268,6 @@ final class HUDOverlayView: NSView {
     override func layout() {
         super.layout()
         titleLabel.preferredMaxLayoutWidth = bounds.width * 0.7
-        // Full 30pt at fullscreen width, scaled down proportionally in windowed mode
-        let refWidth = window?.screen?.frame.width ?? bounds.width
-        let size = max(18, 30 * min(1, bounds.width / refWidth))
-        // Re-styling rewrites attributedStringValue, which re-marks the view
-        // as needing layout — so only do it when the size actually changed.
-        // (Text changes go through setTitle, settings through settingsDidChange.)
-        if titleLabel.font?.pointSize != size {
-            let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
-                                           bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
-            applyTitleStyle(font: font)
-        }
-        // Guard mirrors the title's: restyling rewrites attributedStringValue,
-        // which re-marks the view as needing layout.
-        let metaSize = max(12, size * 2 / 3)
-        if metaLabel.font?.pointSize != metaSize {
-            applyMetaStyle(size: metaSize)
-        }
-        volumeLabel?.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size * Self.osdScale,
-                                                bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
-        let iconConfig = NSImage.SymbolConfiguration(pointSize: size * Self.osdScale, weight: .semibold)
-        volumeIconView?.image =
-            NSImage(systemSymbolName: volumeIconName, accessibilityDescription: nil)?
-            .withSymbolConfiguration(iconConfig)
     }
 
     @available(*, unavailable)
@@ -482,7 +464,13 @@ final class HUDOverlayView: NSView {
     @objc private func settingsDidChange() {
         progressBar.trackFillColor = AppSettings.progressNSColor
         applyTitleStyle()
-        applyMetaStyle(size: max(12, (titleLabel.font?.pointSize ?? 30) * 2 / 3))
+        applyMetaStyle(size: Self.titlePointSize * Self.metaScale)
+        // layout() no longer runs per-pass, so this is what carries a HUD font
+        // change to the OSD label. Without it the OSD keeps the old family
+        // until relaunch.
+        volumeLabel?.font = AppSettings.hudFont(named: AppSettings.hudFontName,
+                                                size: Self.titlePointSize * Self.osdScale,
+                                                bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
         needsLayout = true
     }
 
@@ -693,8 +681,7 @@ final class HUDOverlayView: NSView {
     }
 
     private func setVolumeIcon(_ name: String) {
-        volumeIconName = name
-        let size = volumeLabel?.font?.pointSize ?? (30 * Self.osdScale)
+        let size = Self.titlePointSize * Self.osdScale
         let config = NSImage.SymbolConfiguration(pointSize: size, weight: .semibold)
         volumeIconView?.image =
             NSImage(systemSymbolName: name, accessibilityDescription: nil)?
@@ -778,31 +765,26 @@ final class HUDOverlayView: NSView {
     }
 
     func setTitle(_ title: String, meta: String? = nil) {
-        let font = titleLabel.font ?? AppSettings.hudFont(named: AppSettings.hudFontName, size: 30,
-                                                          bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
-        applyTitleStyle(font: font, text: title)
+        applyTitleStyle(text: title)
         metaLabel.stringValue = meta ?? ""
         metaLabel.isHidden = meta?.isEmpty ?? true
         metaHeight.isActive = metaLabel.isHidden
-        applyMetaStyle(size: max(12, font.pointSize * 2 / 3))
+        applyMetaStyle(size: Self.titlePointSize * Self.metaScale)
         titleLabel.needsLayout = true
         needsLayout = true
     }
 
-    private func applyTitleStyle() {
-        let size = titleLabel.font?.pointSize ?? 30
-        let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
-                                       bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
-        applyTitleStyle(font: font)
-    }
-
-    private func applyTitleStyle(font: NSFont, text: String? = nil) {
+    private func applyTitleStyle(text: String? = nil) {
         let string = text ?? titleLabel.attributedStringValue.string
+        let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: Self.titlePointSize,
+                                       bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        // Font first: with an empty title this is the only thing that applies
+        // a font change (settingsDidChange passes no text). Mirrors applyMetaStyle.
+        titleLabel.font = font
         guard !string.isEmpty else {
             titleLabel.attributedStringValue = NSAttributedString(string: "")
             return
         }
-        titleLabel.font = font
         guard AppSettings.hudBorderSize > 0 else {
             titleLabel.textColor = .white
             titleLabel.stringValue = string
@@ -827,8 +809,8 @@ final class HUDOverlayView: NSView {
     private func applyMetaStyle(size: CGFloat) {
         let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
                                        bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
-        // Font first: layout() keys convergence on pointSize, and an empty
-        // meta must still converge instead of re-styling every pass.
+        // Font first: with an empty meta this is the only thing that applies
+        // a font change (settingsDidChange passes no text).
         metaLabel.font = font
         let string = metaLabel.attributedStringValue.string
         guard !string.isEmpty else {
