@@ -191,9 +191,9 @@ final class SettingsPopoverView: NSView {
         // Rows hug content by default, leaving the column's right side
         // empty — pin the boxes (the only non-row views added directly)
         // to the column width minus the 20pt edge insets, and pin each
-        // row wrapper inside the boxes to its box's rows stack, so
-        // sliders and flex spacers absorb the slack instead. Done here,
-        // once all anchors share the hierarchy.
+        // row inside the boxes to its box's rows stack, so sliders and
+        // flex spacers absorb the slack instead. Done here, once all
+        // anchors share the hierarchy.
         for case let row as NSStackView in stack.arrangedSubviews {
             row.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40).isActive = true
         }
@@ -281,7 +281,7 @@ final class SettingsPopoverView: NSView {
         let readout = makeLabel(String(Int(value)), size: 12)
         readout.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([readout.widthAnchor.constraint(equalToConstant: 28)])
-        return (fillRow(label, [slider, readout]), slider, readout)
+        return (fillRow(label, [slider, readout], spacer: false), slider, readout)
     }
 
     private func colGuard() -> NSView {
