@@ -332,7 +332,7 @@ final class HUDOverlayView: NSView {
             if (track["selected"] as? Int64) == 1 { item.state = .on }
             menu.addItem(item)
         }
-        NSMenu.popUpContextMenu(menu, with: NSApp.currentEvent ?? NSApplication.shared.currentEvent!, for: button)
+        NSMenu.popUpContextMenu(menu, with: NSApp.currentEvent!, for: button)
         resetHideTimer()
     }
 
@@ -500,14 +500,9 @@ final class HUDOverlayView: NSView {
         if now - lastSeekAt >= seekMinInterval {
             lastSeekAt = now
             pendingSeek = nil
-            seekAbsolute(target)
+            if target.isFinite { pv.seekAbsolute(target) }
         }
         resetHideTimer()
-    }
-
-    private func seekAbsolute(_ target: Double) {
-        guard target.isFinite else { return }
-        playerView?.seekAbsolute(target)
     }
 
     private func scrubBegan() {
@@ -524,9 +519,9 @@ final class HUDOverlayView: NSView {
     }
 
     private func scrubEnded() {
-        if let target = pendingSeek {
+        if let target = pendingSeek, target.isFinite {
             pendingSeek = nil
-            seekAbsolute(target)
+            playerView?.seekAbsolute(target)
         }
         if wasPlayingBeforeScrub {
             playerView?.unpause()
@@ -775,64 +770,44 @@ final class HUDOverlayView: NSView {
     }
 
     private func applyTitleStyle(text: String? = nil) {
-        let string = text ?? titleLabel.attributedStringValue.string
-        let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: Self.titlePointSize,
-                                       bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
-        // Font first: with an empty title this is the only thing that applies
-        // a font change (settingsDidChange passes no text). Mirrors applyMetaStyle.
-        titleLabel.font = font
-        guard !string.isEmpty else {
-            titleLabel.attributedStringValue = NSAttributedString(string: "")
-            return
-        }
-        guard AppSettings.hudBorderSize > 0 else {
-            titleLabel.textColor = .white
-            titleLabel.stringValue = string
-            return
-        }
-        // NB: no .strokeWidth here on purpose. AppKit draws a negative
-        // stroke centered on the glyph path, so half of it eats the fill
-        // (thin white core, fat dark edge). A zero-offset shadow renders
-        // fully outside the glyphs, like mpv's subtitle border.
-        let halo = NSShadow()
-        halo.shadowColor = AppSettings.hudBorderNSColor
-        halo.shadowBlurRadius = CGFloat(AppSettings.hudBorderSize) * 2
-        halo.shadowOffset = .zero
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: NSColor.white,
-            .shadow: halo,
-        ]
-        titleLabel.attributedStringValue = NSAttributedString(string: string, attributes: attrs)
+        applyHaloStyle(to: titleLabel, color: .white, size: Self.titlePointSize, text: text)
     }
 
     private func applyMetaStyle(size: CGFloat) {
+        applyHaloStyle(to: metaLabel, color: NSColor(white: 1, alpha: 0.5), size: size)
+    }
+
+    /// Font first: with an empty label this is the only thing that applies a
+    /// font change (settingsDidChange passes no text).
+    ///
+    /// NB: no .strokeWidth here on purpose. AppKit draws a negative stroke
+    /// centered on the glyph path, so half of it eats the fill (thin white
+    /// core, fat dark edge). A zero-offset shadow renders fully outside the
+    /// glyphs, like mpv's subtitle border.
+    private func applyHaloStyle(to label: NSTextField, color: NSColor,
+                                size: CGFloat, text: String? = nil) {
         let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,
                                        bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
-        // Font first: with an empty meta this is the only thing that applies
-        // a font change (settingsDidChange passes no text).
-        metaLabel.font = font
-        let string = metaLabel.attributedStringValue.string
+        label.font = font
+        let string = text ?? label.attributedStringValue.string
         guard !string.isEmpty else {
-            metaLabel.attributedStringValue = NSAttributedString(string: "")
+            label.attributedStringValue = NSAttributedString(string: "")
             return
         }
         guard AppSettings.hudBorderSize > 0 else {
-            metaLabel.textColor = NSColor(white: 1, alpha: 0.5)
-            metaLabel.stringValue = string
+            label.textColor = color
+            label.stringValue = string
             return
         }
-        // Same zero-offset halo as the title so the small dim line survives
-        // bright scenes; alpha follows the 50% text dimming.
         let halo = NSShadow()
-        halo.shadowColor = NSColor(white: 0, alpha: 0.5)
+        // Black at the label's own alpha, so the dim meta line's halo dims too.
+        halo.shadowColor = NSColor(white: 0, alpha: color.alphaComponent)
         halo.shadowBlurRadius = CGFloat(AppSettings.hudBorderSize) * 2
         halo.shadowOffset = .zero
-        let attrs: [NSAttributedString.Key: Any] = [
+        label.attributedStringValue = NSAttributedString(string: string, attributes: [
             .font: font,
-            .foregroundColor: NSColor(white: 1, alpha: 0.5),
+            .foregroundColor: color,
             .shadow: halo,
-        ]
-        metaLabel.attributedStringValue = NSAttributedString(string: string, attributes: attrs)
+        ])
     }
 }

@@ -27,38 +27,43 @@ enum AppSettings {
     }
 
     // MARK: - Defaults
-    private static let defaults: [String: Any] = [
-        K.hudFontName: "",
-        K.hudBold: true,
-        K.hudItalic: false,
-        K.hudBorderSize: 1.0,
-        K.progressColor: "1.0/1.0/1.0/1.0",
-        K.subFontName: "",
-        K.subBold: true,
-        K.subItalic: true,
-        K.subFontSize: 30.0,
-        K.subColor: "1.0/1.0/1.0/1.0",
-        K.subBorderColor: "0.0/0.0/0.0/1.0",
-        K.subBorderSize: 3.0,
-        K.subShadowOffset: 0.0,
-        K.subOverrideASS: true,
-    ]
+    // Registration domain: the typed accessors below need no fallback logic,
+    // and registered values are volatile so they never reach disk. Called once
+    // from main.swift, before anything reads a setting.
+    static func registerDefaults() {
+        d.register(defaults: [
+            K.hudFontName: "",
+            K.hudBold: true,
+            K.hudItalic: false,
+            K.hudBorderSize: 1.0,
+            K.progressColor: "1.0/1.0/1.0/1.0",
+            K.subFontName: "",
+            K.subBold: true,
+            K.subItalic: true,
+            K.subFontSize: 30.0,
+            K.subColor: "1.0/1.0/1.0/1.0",
+            K.subBorderColor: "0.0/0.0/0.0/1.0",
+            K.subBorderSize: 3.0,
+            K.subShadowOffset: 0.0,
+            K.subOverrideASS: true,
+        ])
+    }
 
     // MARK: - Read
-    static var hudFontName: String { d.string(forKey: K.hudFontName) ?? defaults[K.hudFontName] as! String }
-    static var hudBold: Bool { d.object(forKey: K.hudBold) as? Bool ?? defaults[K.hudBold] as! Bool }
-    static var hudItalic: Bool { d.object(forKey: K.hudItalic) as? Bool ?? defaults[K.hudItalic] as! Bool }
-    static var hudBorderSize: Double { d.object(forKey: K.hudBorderSize) as? Double ?? defaults[K.hudBorderSize] as! Double }
-    static var progressColor: String { d.string(forKey: K.progressColor) ?? defaults[K.progressColor] as! String }
-    static var subFontName: String { d.string(forKey: K.subFontName) ?? defaults[K.subFontName] as! String }
-    static var subBold: Bool { d.object(forKey: K.subBold) as? Bool ?? defaults[K.subBold] as! Bool }
-    static var subItalic: Bool { d.object(forKey: K.subItalic) as? Bool ?? defaults[K.subItalic] as! Bool }
-    static var subFontSize: Double { d.object(forKey: K.subFontSize) as? Double ?? defaults[K.subFontSize] as! Double }
-    static var subColor: String { d.string(forKey: K.subColor) ?? defaults[K.subColor] as! String }
-    static var subBorderColor: String { d.string(forKey: K.subBorderColor) ?? defaults[K.subBorderColor] as! String }
-    static var subBorderSize: Double { d.object(forKey: K.subBorderSize) as? Double ?? defaults[K.subBorderSize] as! Double }
-    static var subShadowOffset: Double { d.object(forKey: K.subShadowOffset) as? Double ?? defaults[K.subShadowOffset] as! Double }
-    static var subOverrideASS: Bool { d.object(forKey: K.subOverrideASS) as? Bool ?? defaults[K.subOverrideASS] as! Bool }
+    static var hudFontName: String { d.string(forKey: K.hudFontName) ?? "" }
+    static var hudBold: Bool { d.bool(forKey: K.hudBold) }
+    static var hudItalic: Bool { d.bool(forKey: K.hudItalic) }
+    static var hudBorderSize: Double { d.double(forKey: K.hudBorderSize) }
+    static var progressColor: String { d.string(forKey: K.progressColor) ?? "" }
+    static var subFontName: String { d.string(forKey: K.subFontName) ?? "" }
+    static var subBold: Bool { d.bool(forKey: K.subBold) }
+    static var subItalic: Bool { d.bool(forKey: K.subItalic) }
+    static var subFontSize: Double { d.double(forKey: K.subFontSize) }
+    static var subColor: String { d.string(forKey: K.subColor) ?? "" }
+    static var subBorderColor: String { d.string(forKey: K.subBorderColor) ?? "" }
+    static var subBorderSize: Double { d.double(forKey: K.subBorderSize) }
+    static var subShadowOffset: Double { d.double(forKey: K.subShadowOffset) }
+    static var subOverrideASS: Bool { d.bool(forKey: K.subOverrideASS) }
 
     // MARK: - Write
     static func setHudFontName(_ v: String) { d.set(v, forKey: K.hudFontName); notify() }
@@ -78,28 +83,27 @@ enum AppSettings {
 
     // MARK: - Reset
     static func resetAll() {
-        // hudBorderColor is a legacy key (setting removed); clear it so
-        // pre-removal custom values don't linger.
-        d.removeObject(forKey: "hudBorderColor")
-        for key in [K.hudFontName, K.hudBold, K.hudItalic, K.hudBorderSize, K.progressColor, K.subFontName, K.subBold, K.subItalic,
-                    K.subFontSize, K.subColor, K.subBorderColor, K.subBorderSize, K.subShadowOffset,
-                    K.subOverrideASS] {
+        for key in [K.hudFontName, K.hudBold, K.hudItalic, K.hudBorderSize, K.progressColor,
+                    K.subFontName, K.subBold, K.subItalic, K.subFontSize, K.subColor,
+                    K.subBorderColor, K.subBorderSize, K.subShadowOffset, K.subOverrideASS] {
             d.removeObject(forKey: key)
         }
         notify()
     }
 
     // MARK: - Font helpers
-    static var progressNSColor: NSColor? {
-        guard !progressColor.isEmpty else { return nil }
-        let parts = progressColor.split(separator: "/").compactMap { Double($0) }
+    static var progressNSColor: NSColor? { color(fromMPV: progressColor) }
+
+    /// Parses mpv's "r/g/b/a" color notation (alpha optional). Nil when
+    /// unparseable — and no empty-string special case is needed, since ""
+    /// splits to zero parts and falls out of the same guard.
+    static func color(fromMPV str: String) -> NSColor? {
+        let parts = str.split(separator: "/").compactMap { Double($0) }
         guard parts.count >= 3 else { return nil }
         return NSColor(red: CGFloat(parts[0]), green: CGFloat(parts[1]),
                        blue: CGFloat(parts[2]),
                        alpha: parts.count >= 4 ? CGFloat(parts[3]) : 1.0)
     }
-
-    static var hudBorderNSColor: NSColor { .black }
 
     static func hudFont(named name: String, size: CGFloat, bold: Bool = false, italic: Bool = false) -> NSFont {
         var font = name.isEmpty ? .systemFont(ofSize: size) : (NSFont(name: name, size: size) ?? .systemFont(ofSize: size))
