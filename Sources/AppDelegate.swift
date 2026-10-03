@@ -547,7 +547,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                     return
                 }
                 NSLog("vidp: failed to remove app: \(error)")
-                guard !wipeDefaults else { return }
                 let errAlert = NSAlert()
                 errAlert.messageText = "Could not remove Vidp"
                 errAlert.informativeText = error.localizedDescription

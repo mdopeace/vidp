@@ -519,9 +519,9 @@ final class HUDOverlayView: NSView {
     }
 
     private func scrubEnded() {
-        if let target = pendingSeek, target.isFinite {
+        if let target = pendingSeek {
             pendingSeek = nil
-            playerView?.seekAbsolute(target)
+            if target.isFinite { playerView?.seekAbsolute(target) }
         }
         if wasPlayingBeforeScrub {
             playerView?.unpause()

@@ -258,8 +258,13 @@ final class SettingsPopoverView: NSView {
     }
 
     /// HIG form row: right-aligned label, controls, trailing slack absorber.
-    private func fillRow(_ label: String, _ views: [NSView]) -> NSStackView {
-        let row = NSStackView(views: [rowLabel(label)] + views + [flexSpacer()])
+    /// `spacer: false` lets the controls themselves stretch instead — the font
+    /// popup is sized by its item titles, so it should fill the row as it did
+    /// before these rows shared a builder.
+    private func fillRow(_ label: String, _ views: [NSView], spacer: Bool = true) -> NSStackView {
+        var rowViews = [rowLabel(label)] + views
+        if spacer { rowViews.append(flexSpacer()) }
+        let row = NSStackView(views: rowViews)
         row.spacing = 8
         row.alignment = .centerY
         row.distribution = .fill
@@ -326,7 +331,7 @@ final class SettingsPopoverView: NSView {
         let check = NSButton(checkboxWithTitle: "System Font", target: nil, action: nil)
         check.state = selected.isEmpty ? .on : .off
 
-        return (fillRow("Font", [popup]), popup, check)
+        return (fillRow("Font", [popup], spacer: false), popup, check)
     }
 
     private func spacer(_ stack: NSStackView) {
