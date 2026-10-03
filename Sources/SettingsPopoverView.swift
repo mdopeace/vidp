@@ -415,7 +415,7 @@ final class SettingsPopoverView: NSView {
     // MARK: - Actions
 
     @objc private func subFontChanged() {
-        let name = subFontPopup.titleOfSelectedItem ?? "Helvetica"
+        let name = subFontPopup.titleOfSelectedItem ?? ""
         AppSettings.setSubFontName(name)
     }
 
