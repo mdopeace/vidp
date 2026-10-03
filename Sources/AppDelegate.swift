@@ -871,8 +871,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         savedWindowSize = nil
     }
 
-    func windowDidFailToExitFullScreen(_ notification: Notification) {
-        // Never leave the window invisible if the exit transition fails.
+    // Takes NSWindow, not Notification (unlike windowDidExitFullScreen directly
+    // above) — AppKit requires this exact signature, and a mismatch compiles to
+    // only a "nearly matches" warning. Kept in the class body deliberately:
+    // moving it to an extension to silence that warning silences it silently,
+    // and the warning is the only signal the callback is uncalled.
+    func windowDidFailToExitFullScreen(_ window: NSWindow) {
         window.alphaValue = 1
     }
 
