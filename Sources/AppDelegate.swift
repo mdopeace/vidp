@@ -135,9 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             playerView.hideOverlay()
             open(path: launchFile)
         } else {
-            window.center()
-            window.makeKeyAndOrderFront(nil)
-            hasShownWindow = true
+            revealHomepage()
         }
 
         // Silent version check on launch
@@ -381,8 +379,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         }
         pipVideo = nil
         pipController = nil
+        restoreWindowHierarchy()
+    }
 
-        // Re-add playerView to main window
+    /// Re-parents playerView / HUD / volume OSD back into the main window and
+    /// brings it forward. Shared by exitPiP and pipDidClose — the user closing
+    /// PiP via its own UI button lands here with no separate call.
+    private func restoreWindowHierarchy() {
         if let visualEffectView = window.contentView {
             playerView.translatesAutoresizingMaskIntoConstraints = false
             visualEffectView.addSubview(playerView)
@@ -416,26 +419,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         isPiPActive = false
         pipVideo = nil
         pipController = nil
-
-        if let visualEffectView = window.contentView {
-            playerView.translatesAutoresizingMaskIntoConstraints = false
-            visualEffectView.addSubview(playerView)
-            NSLayoutConstraint.activate([
-                playerView.leadingAnchor.constraint(equalTo: visualEffectView.leadingAnchor),
-                playerView.trailingAnchor.constraint(equalTo: visualEffectView.trailingAnchor),
-                playerView.topAnchor.constraint(equalTo: visualEffectView.topAnchor),
-                playerView.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor),
-            ])
-            visualEffectView.addSubview(hudOverlay)
-            // Volume indicator must be above HUD so it's visible
-            if let volumeStack = hudOverlay.volumeStack {
-                visualEffectView.addSubview(volumeStack)
-                volumeStack.alphaValue = 0
-            }
-        }
-
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
+        restoreWindowHierarchy()
     }
 
     func pipActionPlay(_ pip: PIPViewController) {
@@ -494,6 +478,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         }
     }
 
+    /// Cold-start opens keep the window hidden until the first video-size or
+    /// file-load event, so it appears once, directly at video size — never as
+    /// a homepage-sized window first.
+    private func revealHomepage() {
+        guard !hasShownWindow else { return }
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        hasShownWindow = true
+    }
+
     @objc private func makeDefaultPlayer() {
         let bundleID = Bundle.main.bundleIdentifier! as CFString
         let types = [
@@ -529,47 +523,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         let response = alert.runModal()
         switch response {
         case .alertFirstButtonReturn:
-            fullCleanup()
+            trashApp(wipeDefaults: true)
         case .alertSecondButtonReturn:
-            removeAppOnly()
+            trashApp(wipeDefaults: false)
         default:
             break
         }
     }
 
-    private func removeAppOnly() {
-        let appPath = Bundle.main.bundlePath
-        NSWorkspace.shared.recycle([URL(fileURLWithPath: appPath)]) { _, error in
-            DispatchQueue.main.async {
-                if let error {
-                    NSLog("vidp: failed to remove app: \(error)")
-                    let errAlert = NSAlert()
-                    errAlert.messageText = "Could not remove Vidp"
-                    errAlert.informativeText = error.localizedDescription
-                    errAlert.alertStyle = .critical
-                    errAlert.addButton(withTitle: "OK")
-                    errAlert.runModal()
-                } else {
-                    NSApp.terminate(nil)
-                }
-            }
+    /// Moves the bundle to the Trash, then quits. `wipeDefaults` also clears
+    /// this app's persisted settings, so a reinstall starts truly fresh.
+    /// Quits only once the bundle is actually gone, so a failed Trash leaves
+    /// the app open to retry from the menu.
+    private func trashApp(wipeDefaults: Bool) {
+        if wipeDefaults, let bundleID = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: bundleID)
         }
-    }
-
-    private func fullCleanup() {
         let appPath = Bundle.main.bundlePath
-        let bundleID = Bundle.main.bundleIdentifier ?? "com.vidp.vidp"
-
-        // Clear all UserDefaults for this app
-        UserDefaults.standard.removePersistentDomain(forName: bundleID)
-
-        // Trash the app bundle
         NSWorkspace.shared.recycle([URL(fileURLWithPath: appPath)]) { _, error in
             DispatchQueue.main.async {
-                if let error {
-                    NSLog("vidp: failed to remove app: \(error)")
+                guard let error else {
+                    NSApp.terminate(nil)
+                    return
                 }
-                NSApp.terminate(nil)
+                NSLog("vidp: failed to remove app: \(error)")
+                let errAlert = NSAlert()
+                errAlert.messageText = "Could not remove Vidp"
+                errAlert.informativeText = error.localizedDescription
+                errAlert.alertStyle = .critical
+                errAlert.addButton(withTitle: "OK")
+                errAlert.runModal()
             }
         }
     }
@@ -821,11 +804,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
             NSLog("vidp: no such file: \(path)")
             // Cold-start with a bad path must still show the homepage.
-            if !hasShownWindow {
-                window.center()
-                window.makeKeyAndOrderFront(nil)
-                hasShownWindow = true
-            }
+            revealHomepage()
             return
         }
         savePosition()
@@ -972,10 +951,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         window.setContentSize(size)
         window.center()
         // Deferred cold-start open: appear once, directly at video size.
-        if !hasShownWindow {
-            window.makeKeyAndOrderFront(nil)
-            hasShownWindow = true
-        }
+        revealHomepage()
     }
 
     private func updateNowPlayingInfo() {
@@ -1022,30 +998,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         NSLog("vidp playback error: \(message)")
         playerView.showOverlay()
         // Never leave a deferred cold-start open invisible.
-        if !hasShownWindow {
-            window.center()
-            window.makeKeyAndOrderFront(nil)
-            hasShownWindow = true
-        }
+        revealHomepage()
     }
 
     func playerDidEndFile() {
         guard currentFilePath != nil else {
             playerView.showOverlay()
-            if !hasShownWindow {
-                window.center()
-                window.makeKeyAndOrderFront(nil)
-                hasShownWindow = true
-            }
+            revealHomepage()
             return
         }
         guard playAdjacent(offset: 1) else {
             playerView.showOverlay()
-            if !hasShownWindow {
-                window.center()
-                window.makeKeyAndOrderFront(nil)
-                hasShownWindow = true
-            }
+            revealHomepage()
             return
         }
     }
@@ -1059,13 +1023,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     }
 
     func playerHasNext() -> Bool {
-        hasAdjacent(offset: 1)
-    }
-
-    /// True if a video `offset` slots away exists in the folder's natural-sorted list.
-    private func hasAdjacent(offset: Int) -> Bool {
         guard let (files, idx) = adjacentFiles() else { return false }
-        return files.indices.contains(idx + offset)
+        return files.indices.contains(idx + 1)
     }
 
     /// Plays the video `offset` slots away in the folder's natural-sorted list.
@@ -1106,10 +1065,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         // delayed so it can't race the size event and reintroduce the flash.
         if !hasShownWindow {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-                guard let self, !self.hasShownWindow, self.currentFilePath != nil else { return }
-                self.window.center()
-                self.window.makeKeyAndOrderFront(nil)
-                self.hasShownWindow = true
+                guard let self, self.currentFilePath != nil else { return }
+                self.revealHomepage()
             }
         }
     }
