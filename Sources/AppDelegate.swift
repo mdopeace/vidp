@@ -880,6 +880,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         window.alphaValue = 1
     }
 
+    /// Safety net for a fullscreen exit that fails *silently*.
+    /// `windowDidFailToExitFullScreen` is best-effort — AppKit documents that
+    /// it only attempts to minimize these cases, and `toggleFullScreen` may
+    /// simply do nothing — so `closeCurrentVideo`'s `alphaValue = 0` can
+    /// outlive every callback meant to undo it, leaving the app running with
+    /// no visible window. Becoming key is an AppKit-independent signal that
+    /// the user is looking at us, so restore there if we are still hidden.
+    func windowDidBecomeKey(_ notification: Notification) {
+        guard window.alphaValue < 1 else { return }
+        window.alphaValue = 1
+    }
+
     private func savePosition() {
         guard let path = currentFilePath, let playerView else { return }
         guard let pos = playerView.doubleProperty("time-pos"),
