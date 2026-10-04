@@ -2,3 +2,6 @@ vidp.app/
 /vidp.icns
 AppIcon.iconset/
 .DS_Store
+
+# Parent of the tap clone that release.sh checks out to mdopeace/ and removes.
+/mdopeace/

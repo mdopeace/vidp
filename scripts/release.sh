@@ -75,7 +75,10 @@ git reset --hard origin/main
 ./scripts/build.sh
 ARCHIVE="vidp.app.zip"
 CHECKSUM="$ARCHIVE.sha256"
-trap 'rm -f "$ARCHIVE" "$CHECKSUM"' EXIT
+# Also cleans the tap clone (step 5) and the parent dir its clone path implies,
+# so a mid-release failure doesn't leave an untracked dir in the repo root.
+# rmdir, not rm -rf, on the parent: it refuses when the dir still has contents.
+trap 'rm -f "$ARCHIVE" "$CHECKSUM"; rm -rf "$TAP"; rmdir "$(dirname "$TAP")" 2>/dev/null || true' EXIT
 rm -f "$ARCHIVE"
 ditto -c -k --keepParent vidp.app "$ARCHIVE"
 shasum -a 256 "$ARCHIVE" > "$CHECKSUM"
@@ -105,6 +108,5 @@ sed -i '' "s/sha256 \"[0-9a-f]*\"/sha256 \"$SHA\"/" "$F"
         --body "Releases vidp v$V." >/dev/null
     gh pr merge --merge --delete-branch
 )
-rm -rf "$TAP"
 
 echo "Released v$V. Users can now: brew update && brew upgrade vidp"
