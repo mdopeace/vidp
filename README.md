@@ -9,11 +9,15 @@ No Electron, no bloat — just a fast native player that plays nearly anything m
 
 ```sh
 brew tap mdopeace/vidp
-brew install vidp
+brew install --cask vidp
 ```
 
-That installs to `/Applications` — no compiler, no `brew install mpv`, nothing
-else to set up. The app bundles its own libmpv and ffmpeg, so it runs standalone.
+Installs `vidp.app` to `/Applications`. The `--cask` flag is optional — plain
+`brew install vidp` finds it too.
+
+There is no manual copy step and no compiler: a cask writes to `/Applications`
+directly, and the app bundles its own libmpv and FFmpeg, so `brew install mpv`
+is not needed to run it.
 
 To update to a newer release:
 
@@ -27,15 +31,34 @@ Then launch:
 open /Applications/vidp.app
 ```
 
-Once installed, the app's **Check for Updates** command keeps it up to date. It
-does nothing when you're already on the latest version, so it can't do the
-initial install.
+Or let the app update itself with **Check for Updates**. Both routes install the
+same build, and Homebrew tracks its own record of the installed version, so that
+record can fall out of step with an in-app update. `brew reinstall --cask vidp`
+re-points it at the tap's version — which rolls the app back if the tap hasn't
+published that version yet, so check `brew info --cask vidp` first if you just
+updated in-app.
 
 > **Apple Silicon only.** Releases are arm64, so the prebuilt binary won't run on
 > Intel. Build from source below if you need x86_64.
 >
-> Because libmpv and ffmpeg are bundled, an update ships a new copy of them —
+> Because libmpv and FFmpeg are bundled, an update ships a new copy of them —
 > expect a ~25 MB download per upgrade.
+
+### Migrating from the formula
+
+Releases before 0.13.0 shipped a formula, which installed under `opt/` and asked
+you to copy the app into `/Applications` by hand. This tap now ships a cask.
+
+On Homebrew 5.0.6+ `brew update` migrates the formula to the cask for you. It
+fails if a copy is already sitting in `/Applications` — exactly what the old
+manual step left behind — and the old formula keg keeps `mpv` pinned as a
+dependency. Remove both first:
+
+```sh
+rm -rf /Applications/vidp.app
+brew uninstall --formula vidp
+brew install --cask vidp
+```
 
 ### from source
 
@@ -68,9 +91,13 @@ libmpv into the app itself, so end users need none of this.
 
 ## Notes
 
-- The app is ad-hoc signed for local use. It is not notarized, so the first
-  launch of a downloaded copy may require right-click → Open (or
-  `xattr -dr com.apple.quarantine /Applications/vidp.app`).
+- The app is ad-hoc signed, not notarized. Cask installs strip the quarantine
+  attribute automatically, so they open normally; a `.zip` you download and
+  unzip by hand needs `xattr -dr com.apple.quarantine /Applications/vidp.app`
+  (or right-click → Open) on first launch.
+- macOS asks for permission the first time you open a video from **Desktop**,
+  **Documents** or **Downloads**. Choose **Allow**, or playback will silently
+  sit there doing nothing until you do. Files elsewhere aren't affected.
 - Contributions and issues are welcome, but `main` is branch-protected —
   please open a pull request.
 
