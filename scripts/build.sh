@@ -38,6 +38,10 @@ if [ ! -f resources/macos/vidp.icns ]; then
 fi
 cp resources/macos/vidp.icns "$APP/Contents/Resources/vidp.icns"
 
+# GPL requires the licence text to travel with the distribution, and release
+# builds copy libmpv/FFmpeg into the bundle -- so ship the notices inside it.
+cp LICENSES.md "$APP/Contents/Resources/LICENSES.md"
+
 # Bundle the libmpv closure so the app is self-contained. The cask ships a
 # prebuilt binary, and a binary still linked to /opt/homebrew/... only launches
 # on the machine that built it — so without this, `brew install vidp` would
