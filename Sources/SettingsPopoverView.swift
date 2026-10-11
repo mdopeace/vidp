@@ -63,9 +63,8 @@ final class SettingsPopoverView: NSView {
         stack.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
 
-        // Grouped rows: each box owns a vertical stack; the boxes join
-        // the column where the old flat rows + text headers used to be.
-        // (The sheet titlebar already says Settings, so no in-content header.)
+        // Each box owns a vertical stack. The sheet titlebar already says
+        // Settings, so there is no in-content header.
         let osdRows = NSStackView()
         osdRows.orientation = .vertical
         osdRows.spacing = 8
@@ -187,13 +186,10 @@ final class SettingsPopoverView: NSView {
         bottomRow.distribution = .fill
         stack.addArrangedSubview(bottomRow)
 
-        // Constraints
-        // Rows hug content by default, leaving the column's right side
-        // empty — pin the boxes (the only non-row views added directly)
-        // to the column width minus the 20pt edge insets, and pin each
-        // row inside the boxes to its box's rows stack, so sliders and
-        // flex spacers absorb the slack instead. Done here, once all
-        // anchors share the hierarchy.
+        // Rows hug content by default, leaving the column's right side empty —
+        // pin the boxes (the only non-row views added directly) to the column
+        // minus the 20pt edge insets, and each row inside a box to that box's
+        // stack, so sliders and flex spacers absorb the slack.
         for case let row as NSStackView in stack.arrangedSubviews {
             row.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40).isActive = true
         }
@@ -245,10 +241,9 @@ final class SettingsPopoverView: NSView {
         return l
     }
 
-    // HIG form labels: right-aligned, sentence case, trailing colon —
-    // the colon edge forms the column the controls hang off. 84pt fits
-    // the widest label ("Progress Bar:"); sliders absorb the difference
-    // so total width is unchanged.
+    // HIG form labels: right-aligned with a trailing colon, which forms the
+    // column the controls hang off. 84pt fits the widest ("Progress Bar:");
+    // sliders absorb the difference, so total width is unchanged.
     private func rowLabel(_ text: String) -> NSTextField {
         let l = makeLabel(text.hasSuffix(":") ? text : text + ":", size: 12, color: .secondaryLabelColor)
         l.alignment = .right
@@ -258,9 +253,8 @@ final class SettingsPopoverView: NSView {
     }
 
     /// HIG form row: right-aligned label, controls, trailing slack absorber.
-    /// `spacer: false` lets the controls themselves stretch instead — the font
-    /// popup is sized by its item titles, so it should fill the row as it did
-    /// before these rows shared a builder.
+    /// `spacer: false` lets the controls themselves stretch — the font popup is
+    /// sized by its item titles, so it should fill the row.
     private func fillRow(_ label: String, _ views: [NSView], spacer: Bool = true) -> NSStackView {
         var rowViews = [rowLabel(label)] + views
         if spacer { rowViews.append(flexSpacer()) }
@@ -271,8 +265,8 @@ final class SettingsPopoverView: NSView {
         return row
     }
 
-    /// Label + slider + live integer readout. The caller keeps the returned
-    /// slider and readout to read back on change and on Reset.
+    /// Label + slider + live integer readout. The caller keeps both to read back
+    /// on change and on Reset.
     private func makeSliderRow(label: String, value: Double, range: ClosedRange<Double>,
                                action: Selector) -> (row: NSStackView, slider: NSSlider, readout: NSTextField) {
         let slider = NSSlider(value: value, minValue: range.lowerBound, maxValue: range.upperBound,
@@ -301,7 +295,7 @@ final class SettingsPopoverView: NSView {
     }
 
     /// Trailing absorber for all-fixed rows under a fill parent: the lowest
-    /// hugging priority wins the slack deterministically.
+    /// hugging priority wins the slack.
     private func flexSpacer() -> NSView {
         let v = NSView()
         v.setContentHuggingPriority(.init(1), for: .horizontal)
@@ -309,8 +303,8 @@ final class SettingsPopoverView: NSView {
         return v
     }
 
-    /// Sliders are the only stretchable view in their rows, so they absorb
-    /// the slack deterministically (labels/wells/values carry fixed widths).
+    /// Sliders are the only stretchable view in their rows (labels/wells/values
+    /// carry fixed widths), so they absorb the slack.
     private func flexSlider(_ slider: NSSlider) {
         slider.setContentHuggingPriority(.init(1), for: .horizontal)
     }

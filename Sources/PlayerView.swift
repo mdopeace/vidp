@@ -134,8 +134,8 @@ final class PlayerView: NSView {
         }
     }
 
-    // Paused mpv emits no update callbacks, so a resize/fullscreen toggle
-    // would otherwise leave the last IOSurface stretched until play resumes.
+    // Paused mpv emits no update callbacks, so a resize would leave the last
+    // IOSurface stretched until play resumes.
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         playerLayer?.setNeedsDisplay()
@@ -271,7 +271,7 @@ final class PlayerView: NSView {
         return mpv_get_property(mpv, name, MPV_FORMAT_FLAG, &value) >= 0 ? value != 0 : nil
     }
 
-    /// Initializes mpv + its render context. Returns an error message on failure.
+    /// Returns an error message on failure.
     func setup() -> String? {
         guard let layer = playerLayer, let glctx = layer.cglCtx else { return "no OpenGL context" }
         CGLSetCurrentContext(glctx)
@@ -419,11 +419,9 @@ final class PlayerView: NSView {
     private func restoreSavedTracks() {
         guard let path = currentPath else { return }
         let defaults = UserDefaults.standard
-        // Saved aid/sid from another file may not exist here (e.g. aid:last=2
-        // on a file with only 1 audio track). Setting a nonexistent id leaves
-        // mpv with no track selected -> silent / missing subs. Only restore
-        // ids that actually exist; otherwise keep mpv's default selection.
-        // id 0 maps to "no" (subs Off) and is always valid.
+        // Saved aid/sid from another file may not exist here; a nonexistent id
+        // leaves mpv with no track selected (silent / missing subs). Only restore
+        // ids that exist — id 0 ("no") always does.
         let tracks = trackList()
         func exists(type: String, id: Int) -> Bool {
             if id == 0 { return type == "sub" }

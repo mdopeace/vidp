@@ -27,9 +27,9 @@ enum AppSettings {
     }
 
     // MARK: - Defaults
-    // Registration domain: the typed accessors below need no fallback logic,
-    // and registered values are volatile so they never reach disk. Called once
-    // from main.swift, before anything reads a setting.
+    // Registration domain: the typed accessors below need no fallback logic, and
+    // registered values are volatile so they never reach disk. Called once from
+    // main.swift, before anything reads a setting.
     static func registerDefaults() {
         d.register(defaults: [
             K.hudFontName: "",
@@ -94,9 +94,8 @@ enum AppSettings {
     // MARK: - Font helpers
     static var progressNSColor: NSColor? { color(fromMPV: progressColor) }
 
-    /// Parses mpv's "r/g/b/a" color notation (alpha optional). Nil when
-    /// unparseable — and no empty-string special case is needed, since ""
-    /// splits to zero parts and falls out of the same guard.
+    /// Parses mpv's "r/g/b/a" notation (alpha optional); nil when unparseable —
+    /// "" splits to zero parts and falls out of the same guard.
     static func color(fromMPV str: String) -> NSColor? {
         let parts = str.split(separator: "/").compactMap { Double($0) }
         guard parts.count >= 3 else { return nil }

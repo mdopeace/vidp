@@ -27,7 +27,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
         playerView = PlayerView(frame: .zero)
 
-        // System-standard window background material (Desktop Tinting aware)
         let visualEffectView = NSVisualEffectView()
         visualEffectView.material = .windowBackground
         visualEffectView.state = .active
@@ -35,7 +34,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         visualEffectView.wantsLayer = true
         visualEffectView.autoresizingMask = [.width, .height]
 
-        // Window: native shadow + rounded corners, no title bar strip
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1000, height: 650),
             styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
@@ -49,7 +47,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         window.contentView = visualEffectView
         window.delegate = self
 
-        // Player view on top of the blur
         playerView.frame = visualEffectView.bounds
         playerView.autoresizingMask = [.width, .height]
         visualEffectView.addSubview(playerView)
@@ -78,7 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             hudOverlay.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor),
         ])
 
-        // Volume indicator — added to visualEffectView so it's visible even when HUD is hidden
+        // Parented to visualEffectView, not the HUD, so it shows while the HUD is hidden.
         let volumeIconView = NSImageView()
         volumeIconView.imageScaling = .scaleProportionallyUpOrDown
         volumeIconView.contentTintColor = NSColor(white: 1, alpha: 0.5)
@@ -122,13 +119,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         setupRemoteCommands()
         restoreVolume()
 
-        // Cold-start with a file: keep the window hidden until the first
-        // video-size event so it appears once, directly at video size —
-        // never as a homepage-sized window first.
+        // Cold-start open: stay hidden until the first video-size event, so the
+        // window appears once, directly at video size.
         let cliFile = CommandLine.arguments.dropFirst().first(where: { !$0.hasPrefix("-") })
-        // Preserve old precedence: Open-With (pending) won over CLI since it
-        // opened second. Setup failure also skips deferral — load() would
-        // no-op with no size/file/error event to ever show the window.
+        // pendingFilePath (Open With) wins over the CLI arg; without mpv there is
+        // no size/file/error event to ever show the window, so load() no-ops.
         let launchFile = pendingFilePath ?? cliFile
         if let launchFile, mpvReady {
             pendingFilePath = nil
@@ -138,7 +133,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             revealHomepage()
         }
 
-        // Silent version check on launch
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             self?.performVersionCheck(showUpToDate: false)
         }
@@ -149,8 +143,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
-        // macOS Tahoe auto-icons standard items (About, Quit) only —
-        // custom items need explicit images to match.
+        // Tahoe auto-icons standard items (About, Quit) only; custom items
+        // need explicit images to match.
         func menuIcon(_ name: String) -> NSImage? {
             let img = NSImage(systemSymbolName: name, accessibilityDescription: nil)
             img?.isTemplate = true
@@ -195,10 +189,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
         let playbackMenuItem = NSMenuItem()
         let playbackMenu = NSMenu(title: "Playback")
-        // Real key equivalents (rendered right-aligned per HIG), mirroring
-        // PlayerView.keyDown. They stay disabled while a sheet/panel is open
-        // (see validateMenuItem) so they can't steal keystrokes typed there —
-        // same reach as keyDown, which only fires when PlayerView has focus.
+        // Real key equivalents mirroring PlayerView.keyDown; they stay disabled
+        // while a sheet/panel is open so they can't steal keystrokes (see
+        // validateMenuItem).
         func playbackItem(_ title: String, _ key: String, _ action: Selector,
                           modifiers: NSEvent.ModifierFlags = []) -> NSMenuItem {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
@@ -294,14 +287,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
     // MARK: - Modal panels
 
-    /// Set while runModalPaused has paused playback and not yet resumed it, so a
-    /// hold that outlives its panel (an update download) can be handed back.
+    /// Set while runModalPaused holds playback, so a hold outliving its panel
+    /// (an update download) can be handed back.
     private var pausedByModalPanel = false
 
-    /// Alerts are app-modal but leave the video running behind them. Pause for
-    /// the panel's lifetime, and resume only if it was playing beforehand.
-    /// `shouldResume` is read after the panel closes, so a panel that leads into
-    /// a relaunch can hold the pause instead of restoring playback.
+    /// Alerts are app-modal but leave the video running behind them, so pause for
+    /// the panel's lifetime and resume only if it was playing. `shouldResume` is
+    /// read after close, letting a panel that leads into a relaunch keep the pause.
     @discardableResult
     private func runModalPaused<T>(shouldResume: () -> Bool = { true }, _ body: () -> T) -> T {
         // Read mpv live: the delegate's cached isPaused lags by a main-loop hop.
@@ -319,8 +311,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         return body()
     }
 
-    /// Hand playback back after a panel pause that outlived its panel. Safe to
-    /// call when nothing is held.
+    /// Hand playback back after a panel pause outlived its panel; safe when
+    /// nothing is held.
     private func resumeAfterModalPanel() {
         guard pausedByModalPanel else { return }
         playerView?.unpause()
@@ -417,9 +409,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         restoreWindowHierarchy()
     }
 
-    /// Re-parents playerView / HUD / volume OSD back into the main window and
-    /// brings it forward. Shared by exitPiP and pipDidClose — the user closing
-    /// PiP via its own UI button lands here with no separate call.
+    /// Re-parents playerView / HUD / volume OSD back into the window and brings it
+    /// forward. Shared by exitPiP and pipDidClose (the user closing PiP from its
+    /// own button).
     private func restoreWindowHierarchy() {
         if let visualEffectView = window.contentView {
             playerView.translatesAutoresizingMaskIntoConstraints = false
@@ -503,9 +495,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
              #selector(playNext), #selector(playPrev),
              #selector(togglePiPFromMenu),
              #selector(closeVideo):
-            // Disabled items don't match key equivalents, so this also keeps
-            // single-letter shortcuts from firing while a sheet (settings,
-            // Open panel) owns keyboard focus.
+            // Disabled items don't match key equivalents, which also keeps
+            // single-letter shortcuts from firing while a sheet owns focus.
             guard window?.attachedSheet == nil, NSApp.modalWindow == nil else { return false }
             return hudOverlay?.isFileLoaded ?? false
         default:
@@ -513,9 +504,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         }
     }
 
-    /// Cold-start opens keep the window hidden until the first video-size or
-    /// file-load event, so it appears once, directly at video size — never as
-    /// a homepage-sized window first.
+    /// First reveal of the window: cold-start opens stay hidden until here, so
+    /// they appear once, directly at video size.
     private func revealHomepage() {
         guard !hasShownWindow else { return }
         window.center()
@@ -566,10 +556,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         }
     }
 
-    /// Moves the bundle to the Trash, then quits. `wipeDefaults` also clears
-    /// this app's persisted settings, so a reinstall starts truly fresh.
-    /// Quits only once the bundle is actually gone, so a failed Trash leaves
-    /// the app open to retry from the menu.
+    /// Moves the bundle to the Trash, then quits — only once the bundle is really
+    /// gone, so a failed Trash leaves the app open to retry. `wipeDefaults` also
+    /// clears persisted settings, so a reinstall starts fresh.
     private func trashApp(wipeDefaults: Bool) {
         if wipeDefaults, let bundleID = Bundle.main.bundleIdentifier {
             UserDefaults.standard.removePersistentDomain(forName: bundleID)
@@ -798,14 +787,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         try? fileManager.removeItem(at: temporaryDirectory)
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            // Main-queue capture: the download ran on a URLSession thread,
-            // so reading here avoids racing a video switch mid-download.
-            // Flush position first: the 3s timer may not have run yet.
+            // Runs on main, so reading state here can't race a video switch
+            // mid-download. Flush position first: the 3s timer may not have run.
             self.savePosition()
             let reopenPath = self.currentFilePath
             let relaunch = Process()
             relaunch.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            // ponytail: --args reopens the playing video; cold-start path + saved position resume it
+            // ponytail: --args reopens the playing video; the saved position resumes it
             relaunch.arguments = reopenPath.map { ["-n", self.applicationPath.path, "--args", $0] }
                 ?? ["-n", self.applicationPath.path]
             // ponytail: detached relaunch, parent exits immediately; launchd reaps child
@@ -833,8 +821,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
         runModalPaused { alert.runModal() }
-        // Every failed-update path lands here, and a failure never reaches the
-        // relaunch that normally ends a Download hold — so release it now.
+        // Failures never reach the relaunch that normally ends a Download hold.
         resumeAfterModalPanel()
     }
 
@@ -851,10 +838,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             return
         }
         savePosition()
-        // Preserve the homepage window size across adjacent plays and
-        // fullscreen opens: only capture it when opening from homepage
-        // while windowed. Overwriting here with a video-sized or
-        // fullscreen frame is what leaked the video size into the homepage.
+        // Capture the homepage size only when opening from it while windowed;
+        // overwriting here with a video-sized or fullscreen frame is what leaked
+        // the video size into the homepage.
         if savedWindowSize == nil, !window.styleMask.contains(.fullScreen) {
             savedWindowSize = window.frame.size
         }
@@ -862,11 +848,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         let filename = URL(fileURLWithPath: path).lastPathComponent
         let parsed = MediaNameParser.parse(filename: filename)
         hudOverlay?.setTitle(parsed.title, meta: parsed.metaLine)
-        // Hide the homepage overlay synchronously so a cold-start open never
-        // flashes the homepage while mpv decodes the first frame.
+        // Synchronous: a cold-start open must never flash the homepage while
+        // mpv decodes the first frame.
         playerView.hideOverlay()
-        // Deferred cold-start: window stays hidden until the first video-size
-        // event shows it once at video size (see playerDidUpdateVideoSize).
+        // Deferred cold-start: the first video-size event shows the window at
+        // video size (see playerDidUpdateVideoSize).
         if hasShownWindow {
             window.makeKeyAndOrderFront(nil)
         }
@@ -882,16 +868,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         playerView.stop()
         hudOverlay.setFileLoaded(false)
         currentFilePath = nil
-        // Fullscreen: can't resize in place. If the homepage was windowed
-        // (savedWindowSize != nil), exit fullscreen now; windowDidExitFullScreen
-        // restores the homepage size. If homepage was already fullscreen
-        // (savedWindowSize == nil), stay fullscreen.
+        // Fullscreen can't resize in place. Exit it only when the homepage was
+        // windowed; windowDidExitFullScreen restores its size.
         if window.styleMask.contains(.fullScreen) {
             if savedWindowSize != nil {
-                // Hide the exit transition: AppKit first restores the
-                // pre-fullscreen (video-sized) frame before
-                // windowDidExitFullScreen can apply the homepage size,
-                // which flashes the wrong size.
+                // Hide the transition: AppKit restores the pre-fullscreen frame
+                // before windowDidExitFullScreen resizes, flashing the wrong size.
                 window.alphaValue = 0
                 window.toggleFullScreen(nil)
             }
@@ -914,31 +896,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         savedWindowSize = nil
     }
 
-    // Takes NSWindow, not Notification (unlike windowDidExitFullScreen directly
-    // above) — AppKit requires this exact signature, and a mismatch compiles to
-    // only a "nearly matches" warning. Kept in the class body deliberately:
-    // moving it to an extension to silence that warning silences it silently,
-    // and the warning is the only signal the callback is uncalled.
+    // Takes NSWindow, not Notification, or AppKit never calls it — and a mismatch
+    // only warns. Kept in the class body so that warning stays the signal.
     func windowDidFailToExitFullScreen(_ window: NSWindow) {
         window.alphaValue = 1
     }
 
-    /// Safety net for a fullscreen exit that fails *silently*.
-    /// `windowDidFailToExitFullScreen` is best-effort — AppKit documents that
-    /// it only attempts to minimize these cases, and `toggleFullScreen` may
-    /// simply do nothing — so `closeCurrentVideo`'s `alphaValue = 0` can
-    /// outlive every callback meant to undo it, leaving the app running with
-    /// no visible window. Becoming key is one signal that doesn't depend on
-    /// AppKit reporting the failure.
+    /// Safety net: AppKit can fail a fullscreen exit silently, leaving
+    /// closeCurrentVideo's `alphaValue = 0` with no visible window.
     ///
-    /// ponytail: only catches failures involving a focus change. If the window
-    /// was already key when the exit was attempted — the common case, since the
-    /// user has to interact with it to press Back — nothing fires and recovery
-    /// needs a Cmd+Tab away and back. Ceiling, not a bug: a timeout after the
-    /// transition would cover the rest but can unmask mid-animation, which is
-    /// what the alphaValue = 0 exists to prevent. If that trade ever looks
-    /// worth revisiting, gate it on an NSWindowDidResize/completion signal
-    /// instead of a timer.
+    /// ponytail: only catches failures involving a focus change; if the window was
+    /// already key, recovery needs a Cmd+Tab away and back. A timeout would cover
+    /// the rest but can unmask mid-animation — if that trade is worth revisiting,
+    /// gate it on an NSWindowDidResize signal instead.
     func windowDidBecomeKey(_ notification: Notification) {
         guard window.alphaValue < 1 else { return }
         window.alphaValue = 1
@@ -1005,9 +975,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         guard currentFilePath != nil else { return }
         guard width > 0, height > 0, let screen = window.screen ?? NSScreen.main else { return }
         playerView.hideOverlay()
-        // In fullscreen the window must keep covering the screen; mpv letterboxes
-        // the new aspect ratio itself. setContentSize/center() would shrink the
-        // fullscreen window to windowed size, leaving blank space around it.
+        // In fullscreen mpv letterboxes the new aspect ratio itself; resizing here
+        // would shrink the fullscreen window to windowed size, leaving blank space.
         guard !window.styleMask.contains(.fullScreen) else { return }
         let maxW = screen.visibleFrame.width * 0.9
         let maxH = screen.visibleFrame.height * 0.9
@@ -1095,8 +1064,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         return files.indices.contains(idx + 1)
     }
 
-    /// Plays the video `offset` slots away in the folder's natural-sorted list.
-    /// Returns false if there is no adjacent file (folder edges, no file open).
+    /// Plays the video `offset` slots away in the folder's natural-sorted list;
+    /// false when there is no such file.
     @discardableResult
     private func playAdjacent(offset: Int) -> Bool {
         guard let (files, idx) = adjacentFiles(),
@@ -1129,8 +1098,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         hudOverlay.updateMuteIcon(muted: playerView.boolProperty("mute") ?? false)
         restorePosition(for: path)
         updateNowPlayingInfo()
-        // Fallback if width/height events never arrive (audio-only?):
-        // delayed so it can't race the size event and reintroduce the flash.
+        // Fallback when no size event arrives (audio-only); delayed so it can't
+        // race the size event and reintroduce the flash.
         if !hasShownWindow {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                 guard let self, self.currentFilePath != nil else { return }
