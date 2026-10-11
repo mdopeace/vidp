@@ -292,6 +292,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         }
     }
 
+    // MARK: - Modal panels
+
+    /// Alerts are app-modal but leave the video running behind them. Pause for
+    /// the panel's lifetime, and resume only if it was playing beforehand.
+    @discardableResult
+    private func runModalPaused<T>(_ body: () -> T) -> T {
+        // Read mpv live: the delegate's cached isPaused lags by a main-loop hop.
+        let wasPlaying = playerView?.boolProperty("pause") == false
+        if wasPlaying { playerView?.cyclePause() }
+        defer { if wasPlaying { playerView?.unpause() } }
+        return body()
+    }
+
     // Finder "Open With" sends files here (odoc Apple Event).
     func application(_ application: NSApplication, openFiles files: [String]) {
         if hudOverlay != nil {
@@ -506,7 +519,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         alert.informativeText = "Vidp is now the default player for all supported video types."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
-        alert.runModal()
+        runModalPaused { alert.runModal() }
     }
 
     // MARK: - Uninstall
@@ -520,7 +533,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         alert.addButton(withTitle: "Remove App Only")
         alert.addButton(withTitle: "Cancel")
 
-        let response = alert.runModal()
+        let response = runModalPaused { alert.runModal() }
         switch response {
         case .alertFirstButtonReturn:
             trashApp(wipeDefaults: true)
@@ -552,7 +565,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                 errAlert.informativeText = error.localizedDescription
                 errAlert.alertStyle = .critical
                 errAlert.addButton(withTitle: "OK")
-                errAlert.runModal()
+                self.runModalPaused { errAlert.runModal() }
             }
         }
     }
@@ -571,7 +584,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             view.subviews.forEach(center)
         }
         if let content = alert.window.contentView { center(content) }
-        alert.runModal()
+        runModalPaused { alert.runModal() }
     }
 
     @objc private func checkForUpdates() {
@@ -598,7 +611,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                         alert.informativeText = "Couldn't reach the update server. You're still on Vidp v\(currentVersion)."
                         alert.alertStyle = .informational
                         alert.addButton(withTitle: "OK")
-                        alert.runModal()
+                        self.runModalPaused { alert.runModal() }
                     }
                 }
                 return
@@ -613,7 +626,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                         alert.informativeText = "Vidp v\(currentVersion) is the latest version."
                         alert.alertStyle = .informational
                         alert.addButton(withTitle: "OK")
-                        alert.runModal()
+                        self.runModalPaused { alert.runModal() }
                     }
                 }
                 return
@@ -629,7 +642,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                 alert.alertStyle = .informational
                 alert.addButton(withTitle: "Download")
                 alert.addButton(withTitle: "Later")
-                let response = alert.runModal()
+                let response = self.runModalPaused { alert.runModal() }
                 if response == .alertFirstButtonReturn {
                     self.downloadAndInstallUpdate(from: json, version: latestVersion)
                 }
@@ -792,7 +805,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         alert.informativeText = message
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
-        alert.runModal()
+        runModalPaused { alert.runModal() }
     }
 
     func playerView(_ playerView: PlayerView, didReceiveFile path: String) {
