@@ -23,9 +23,8 @@ final class NudgeUpLabel: NSTextField {
     }
 }
 
-/// OSD indicator (volume/skip) — display-only, never intercepts clicks.
-/// Sits centered over the transport buttons; a plain NSStackView here eats
-/// clicks even at alpha 0 since AppKit hit-testing ignores transparency.
+/// OSD indicator (volume/skip) — display-only, never intercepts clicks. A plain
+/// NSStackView eats them even at alpha 0: AppKit hit-testing ignores transparency.
 final class ClickThroughStackView: NSStackView {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
@@ -65,8 +64,8 @@ final class HUDOverlayView: NSView {
     private var metaLabel: NSTextField!
     private var metaHeight: NSLayoutConstraint!
     private var smoothTimer: Timer?
-    // mpv_command is a blocking main-thread call; seeking on every mouseMove
-    // stalls the slider's tracking loop, making the knob feel heavy. Coalesce.
+    // mpv_command blocks the main thread; seeking on every mouseMove stalls the
+    // slider's tracking loop. Coalesce.
     private let seekMinInterval: TimeInterval = 1.0 / 20.0
     private var pendingSeek: Double?
     private var lastSeekAt: TimeInterval = -1
@@ -74,12 +73,11 @@ final class HUDOverlayView: NSView {
     var volumeLabel: NSTextField!
     var volumeIconView: NSImageView!
     var volumeStack: NSStackView!
-    // OSD icons match the 90 play-button presence: base boxes (40/55/48,
-    // tuned so all three render the same height) scaled uniformly.
+    // OSD icons match the 90 play-button presence: base boxes (40/55/48, tuned
+    // so all three render the same height), scaled uniformly.
     static let osdScale: CGFloat = 2.25
     // HUD type scale. Fixed, not window-relative: the window is sized from the
-    // video's aspect ratio (AppDelegate.playerDidUpdateVideoSize), so scaling
-    // by width made one title render at a different size for every video.
+    // video's aspect ratio, so width-scaling gave every video a different size.
     static let titlePointSize: CGFloat = 30
     static let metaScale: CGFloat = 2.0 / 3.0
     var volumeIconWidth: NSLayoutConstraint!
@@ -166,9 +164,8 @@ final class HUDOverlayView: NSView {
         titleLabel.cell?.isScrollable = false
         titleLabel.setContentHuggingPriority(.required, for: .vertical)
         titleLabel.setContentCompressionResistancePriority(.required, for: .vertical)
-        // Long titles must never push the window wider during layout passes
-        // (fullscreen exit re-solves window fitting size; the <=0.7W cap scales
-        // with the window, so only low compression resistance stops the growth).
+        // Low compression resistance stops long titles pushing the window wider
+        // during layout passes (fullscreen exit re-solves window fitting size).
         titleLabel.setContentCompressionResistancePriority(.init(1), for: .horizontal)
         titleLabel.setContentHuggingPriority(.init(1), for: .horizontal)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -247,10 +244,8 @@ final class HUDOverlayView: NSView {
             remainingLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
         ])
 
-        // Hidden views still occupy Auto Layout space: keep the meta→title
-        // pin always live and collapse to zero height while hidden. The 2pt
-        // pin remains, but the title is independently pinned so its position
-        // never shifts either way.
+        // Hidden views still occupy Auto Layout space: keep the meta→title pin
+        // always live and collapse to zero height while hidden.
         metaLabel.bottomAnchor.constraint(equalTo: titleLabel.topAnchor, constant: -2).isActive = true
         metaHeight = metaLabel.heightAnchor.constraint(equalToConstant: 0)
         metaHeight.isActive = true
@@ -407,8 +402,8 @@ final class HUDOverlayView: NSView {
             closeSettings()
             return
         }
-        // Never stack on another sheet (shortcuts): beginSheet would fail
-        // while settingsSheet gets set, orphaning state with no visible sheet.
+        // Never stack sheets: beginSheet would fail while settingsSheet gets set,
+        // orphaning state with no visible sheet.
         guard window?.attachedSheet == nil else { return }
         wasPlayingBeforeSettings = !(playerView?.boolProperty("pause") ?? true)
         if wasPlayingBeforeSettings { playerView?.cyclePause() }
@@ -420,9 +415,8 @@ final class HUDOverlayView: NSView {
 
         let sheet = NSWindow(contentViewController: vc)
         sheet.title = "Settings"
-        // No .closable: attached sheets show no traffic lights, and Done /
-        // Escape (monitor below) are the only dismissal paths, both of which
-        // clear settingsSheet and the monitor.
+        // No .closable: attached sheets show no traffic lights, so Done / Escape
+        // (the monitor below) are the only dismissal paths.
         sheet.styleMask = [.titled]
         sheet.isOpaque = false
         sheet.backgroundColor = .clear
@@ -430,8 +424,7 @@ final class HUDOverlayView: NSView {
         sheet.isReleasedWhenClosed = false
         window?.beginSheet(sheet)
         settingsSheet = sheet
-        // Escape dismisses (same as Done). Space is deliberately left alone:
-        // focused checkboxes/buttons need it.
+        // Escape dismisses, same as Done. Space is left to focused controls.
         settingsMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 { // escape
                 self?.closeSettings()
@@ -465,9 +458,8 @@ final class HUDOverlayView: NSView {
         progressBar.trackFillColor = AppSettings.progressNSColor
         applyTitleStyle()
         applyMetaStyle(size: Self.titlePointSize * Self.metaScale)
-        // layout() no longer runs per-pass, so this is what carries a HUD font
-        // change to the OSD label. Without it the OSD keeps the old family
-        // until relaunch.
+        // layout() no longer runs per-pass, so this is what carries a font change
+        // to the OSD label.
         volumeLabel?.font = AppSettings.hudFont(named: AppSettings.hudFontName,
                                                 size: Self.titlePointSize * Self.osdScale,
                                                 bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
@@ -508,7 +500,6 @@ final class HUDOverlayView: NSView {
     private func scrubBegan() {
         guard let pv = playerView else { return }
         isScrubbing = true
-        // Pause on hold only if currently playing; if already paused, do nothing.
         wasPlayingBeforeScrub = !(pv.boolProperty("pause") ?? false)
         if wasPlayingBeforeScrub { pv.cyclePause() }
         // Sync the slider to the click position immediately so the jump is
@@ -538,8 +529,8 @@ final class HUDOverlayView: NSView {
         elapsedLabel.stringValue = formatTime(pos)
         remainingLabel.stringValue = "-\(formatTime(dur - pos))"
 
-        // Coming back from hidden, the knob froze where the HUD faded out;
-        // snap to the real position instead of gliding from the stale value.
+        // Coming back from hidden the knob froze where the HUD faded out; snap to
+        // the real position instead of gliding from the stale value.
         if wasHidden {
             progressBar.doubleValue = target
             wasHidden = false
@@ -616,7 +607,6 @@ final class HUDOverlayView: NSView {
         }
         setSubPos(8)
         startDisplayTimer()
-        // Move volume indicator above transport if it's currently showing
         let volumeAlpha = volumeStack?.alphaValue ?? volumeLabel?.alphaValue ?? 0
         if volumeAlpha > 0.01 {
             volumeCenterY?.isActive = false
@@ -633,7 +623,6 @@ final class HUDOverlayView: NSView {
         setSubPos(100)
         NSCursor.setHiddenUntilMouseMoves(true)
         stopDisplayTimer()
-        // Return volume indicator to center when HUD hides
         volumeCenterY?.isActive = true
         volumeAboveTransport?.isActive = false
     }
@@ -655,9 +644,8 @@ final class HUDOverlayView: NSView {
         guard secs != 0 else { return }
         let forward = secs >= 0
         let magnitude = abs(secs)
-        // Number is baked into the glyph — icon only, no text.
-        // Thin outline glyph: oversized 48 box (+20% optical compensation)
-        // so it reads the same size as the solid glyphs at 40.
+        // Number is baked into the glyph — icon only, no text. Thin outline
+        // glyphs get an oversized 48 box (+20% optical) to match the solid ones.
         setIconBox(48)
         if magnitude == 10 || magnitude == 30 {
             setVolumeIcon(forward ? "goforward.\(magnitude)" : "gobackward.\(magnitude)")
@@ -684,7 +672,6 @@ final class HUDOverlayView: NSView {
     }
 
     private func presentVolumeOSD() {
-        // Position above transport if HUD visible, else center
         let hudVisible = alphaValue > 0.01
         volumeCenterY?.isActive = !hudVisible
         volumeAboveTransport?.isActive = hudVisible
@@ -778,12 +765,11 @@ final class HUDOverlayView: NSView {
     }
 
     /// Font first: with an empty label this is the only thing that applies a
-    /// font change (settingsDidChange passes no text).
+    /// font change.
     ///
-    /// NB: no .strokeWidth here on purpose. AppKit draws a negative stroke
-    /// centered on the glyph path, so half of it eats the fill (thin white
-    /// core, fat dark edge). A zero-offset shadow renders fully outside the
-    /// glyphs, like mpv's subtitle border.
+    /// NB: no .strokeWidth on purpose. AppKit centers a negative stroke on the
+    /// glyph path, so half of it eats the fill; a zero-offset shadow renders
+    /// fully outside the glyphs, like mpv's subtitle border.
     private func applyHaloStyle(to label: NSTextField, color: NSColor,
                                 size: CGFloat, text: String? = nil) {
         let font = AppSettings.hudFont(named: AppSettings.hudFontName, size: size,

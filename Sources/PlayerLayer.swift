@@ -4,7 +4,6 @@ import OpenGL.GL
 import CoreVideo
 import CMPV
 
-/// CAOpenGLLayer that renders mpv frames into its own drawable.
 final class PlayerLayer: CAOpenGLLayer {
     weak var player: PlayerView?
     var renderCtx: OpaquePointer?
@@ -16,8 +15,8 @@ final class PlayerLayer: CAOpenGLLayer {
         isAsynchronous = false
         isOpaque = false
 
-        // Eagerly create THE pixel format + context we'll use everywhere,
-        // so mpv's render context binds to the exact context CA draws with.
+        // Eagerly create THE pixel format + context we'll use everywhere, so mpv's
+        // render context binds to the exact context CA draws with.
         let nspf = NSOpenGLPixelFormat(attributes: [
             UInt32(NSOpenGLPFAOpenGLProfile), UInt32(NSOpenGLProfileVersionLegacy),
             UInt32(NSOpenGLPFADoubleBuffer),

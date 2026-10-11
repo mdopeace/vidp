@@ -50,9 +50,9 @@ enum MediaNameParser {
     private static let yearPat = try! NSRegularExpression(pattern: "^(.+?)[.\\s_\\-(\\[]*(19\\d{2}|20\\d{2})\\b")
     private static let brackets = try! NSRegularExpression(pattern: "\\[[^\\]]*\\]|\\([^\\)]*\\)")
     private static let spaces = try! NSRegularExpression(pattern: "\\s{2,}")
-    // Strictly technical tags — never edition words (Final Cut, Extended, …)
-    // or real title words (Proper, Cam, Vision). Ambiguous scene tags
-    // (proper/ts/tc/…) strip from the END only, where tags live.
+    // Strictly technical tags — never edition words (Final Cut, Extended) or
+    // real title words (Proper, Cam). Ambiguous scene tags (proper/ts/tc) strip
+    // from the END only, where tags live.
     private static let codecWords = try! NSRegularExpression(
         pattern: "(?i)\\b(2160p|1080p|720p|480p|576p|4k|hdr(10)?|dolby|x265|x264|h\\.?264|h\\.?265|hevc|web-?dl|webrip|blu-?ray|brrip|bdrip|dvdrip|dvdscr|screener|hdtv|hdrip|aac|ac3|ddp|dts|atmos|truehd|10bit|8bit|amzn|nf|dsnp|hulu|yify|rarbg)\\b")
     private static let trailingCodecWords = try! NSRegularExpression(
@@ -72,9 +72,8 @@ enum MediaNameParser {
             return ParsedMedia(title: clean(title),
                                year: year, season: Int(m[1]), episode: Int(m[2]))
         }
-        // Season pack: Show.S01 / Show.S01.COMPLETE — no episode number,
-        // everything from the season marker on is pack/technical junk,
-        // except a year (Show.S01.2020) which the old movie-year path kept.
+        // Season pack: Show.S01 / Show.S01.COMPLETE — everything from the marker
+        // on is junk except a year (Show.S01.2020).
         if let m = match(base, sOnly) {
             let (title, year) = splitYear(m[0])
             return ParsedMedia(title: clean(title),
@@ -126,8 +125,8 @@ enum MediaNameParser {
     private static func clean(_ s: String) -> String {
         var t = s.replacingOccurrences(of: ".", with: " ")
             .replacingOccurrences(of: "_", with: " ")
-        // Dash-separated names (Breaking-Bad-S01E01) use dashes as separators;
-        // hyphenated titles (Spider-Man.No.Way.Home) already contain spaces by now.
+        // Dashes are separators in Breaking-Bad-S01E01; hyphenated titles
+        // (Spider-Man.No.Way.Home) already contain spaces by now.
         if !t.contains(" ") {
             t = t.replacingOccurrences(of: "-", with: " ")
         }
@@ -139,8 +138,8 @@ enum MediaNameParser {
             .trimmingCharacters(in: CharacterSet(charactersIn: "-_. "))
     }
 
-    /// Strips ambiguous scene tags (PROPER, TS, …) from the END only, where
-    /// tags live — mid-title words (A Proper Marriage) survive.
+    /// Strips ambiguous scene tags (PROPER, TS) from the END only, where tags
+    /// live — mid-title words (A Proper Marriage) survive.
     private static func stripTrailingCodecWords(_ s: String) -> String {
         var t = s
         while let r = trailingCodecWords.firstMatch(in: t, range: NSRange(t.startIndex..., in: t)) {
