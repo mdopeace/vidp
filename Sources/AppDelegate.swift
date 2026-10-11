@@ -292,6 +292,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         }
     }
 
+    // MARK: - Modal panels
+
+    /// Set while runModalPaused has paused playback and not yet resumed it, so a
+    /// hold that outlives its panel (an update download) can be handed back.
+    private var pausedByModalPanel = false
+
+    /// Alerts are app-modal but leave the video running behind them. Pause for
+    /// the panel's lifetime, and resume only if it was playing beforehand.
+    /// `shouldResume` is read after the panel closes, so a panel that leads into
+    /// a relaunch can hold the pause instead of restoring playback.
+    @discardableResult
+    private func runModalPaused<T>(shouldResume: () -> Bool = { true }, _ body: () -> T) -> T {
+        // Read mpv live: the delegate's cached isPaused lags by a main-loop hop.
+        let wasPlaying = playerView?.boolProperty("pause") == false
+        if wasPlaying {
+            playerView?.cyclePause()
+            pausedByModalPanel = true
+        }
+        defer {
+            if wasPlaying, shouldResume() {
+                playerView?.unpause()
+                pausedByModalPanel = false
+            }
+        }
+        return body()
+    }
+
+    /// Hand playback back after a panel pause that outlived its panel. Safe to
+    /// call when nothing is held.
+    private func resumeAfterModalPanel() {
+        guard pausedByModalPanel else { return }
+        playerView?.unpause()
+        pausedByModalPanel = false
+    }
+
     // Finder "Open With" sends files here (odoc Apple Event).
     func application(_ application: NSApplication, openFiles files: [String]) {
         if hudOverlay != nil {
@@ -506,7 +541,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         alert.informativeText = "Vidp is now the default player for all supported video types."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
-        alert.runModal()
+        runModalPaused { alert.runModal() }
     }
 
     // MARK: - Uninstall
@@ -520,7 +555,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         alert.addButton(withTitle: "Remove App Only")
         alert.addButton(withTitle: "Cancel")
 
-        let response = alert.runModal()
+        let response = runModalPaused { alert.runModal() }
         switch response {
         case .alertFirstButtonReturn:
             trashApp(wipeDefaults: true)
@@ -552,7 +587,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                 errAlert.informativeText = error.localizedDescription
                 errAlert.alertStyle = .critical
                 errAlert.addButton(withTitle: "OK")
-                errAlert.runModal()
+                self.runModalPaused { errAlert.runModal() }
             }
         }
     }
@@ -571,7 +606,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             view.subviews.forEach(center)
         }
         if let content = alert.window.contentView { center(content) }
-        alert.runModal()
+        runModalPaused { alert.runModal() }
     }
 
     @objc private func checkForUpdates() {
@@ -598,7 +633,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                         alert.informativeText = "Couldn't reach the update server. You're still on Vidp v\(currentVersion)."
                         alert.alertStyle = .informational
                         alert.addButton(withTitle: "OK")
-                        alert.runModal()
+                        self.runModalPaused { alert.runModal() }
                     }
                 }
                 return
@@ -613,7 +648,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                         alert.informativeText = "Vidp v\(currentVersion) is the latest version."
                         alert.alertStyle = .informational
                         alert.addButton(withTitle: "OK")
-                        alert.runModal()
+                        self.runModalPaused { alert.runModal() }
                     }
                 }
                 return
@@ -629,9 +664,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                 alert.alertStyle = .informational
                 alert.addButton(withTitle: "Download")
                 alert.addButton(withTitle: "Later")
-                let response = alert.runModal()
-                if response == .alertFirstButtonReturn {
-                    self.downloadAndInstallUpdate(from: json, version: latestVersion)
+                // Download ends in a relaunch, so hold the pause through it
+                // rather than resuming behind the download.
+                var downloading = false
+                self.runModalPaused(shouldResume: { !downloading }) {
+                    downloading = alert.runModal() == .alertFirstButtonReturn
+                    if downloading {
+                        self.downloadAndInstallUpdate(from: json, version: latestVersion)
+                    }
                 }
             }
         }
@@ -792,7 +832,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         alert.informativeText = message
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
-        alert.runModal()
+        runModalPaused { alert.runModal() }
+        // Every failed-update path lands here, and a failure never reaches the
+        // relaunch that normally ends a Download hold — so release it now.
+        resumeAfterModalPanel()
     }
 
     func playerView(_ playerView: PlayerView, didReceiveFile path: String) {
