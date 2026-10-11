@@ -294,6 +294,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
     // MARK: - Modal panels
 
+    /// Set while runModalPaused has paused playback and not yet resumed it, so a
+    /// hold that outlives its panel (an update download) can be handed back.
+    private var pausedByModalPanel = false
+
     /// Alerts are app-modal but leave the video running behind them. Pause for
     /// the panel's lifetime, and resume only if it was playing beforehand.
     /// `shouldResume` is read after the panel closes, so a panel that leads into
@@ -302,9 +306,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     private func runModalPaused<T>(shouldResume: () -> Bool = { true }, _ body: () -> T) -> T {
         // Read mpv live: the delegate's cached isPaused lags by a main-loop hop.
         let wasPlaying = playerView?.boolProperty("pause") == false
-        if wasPlaying { playerView?.cyclePause() }
-        defer { if wasPlaying, shouldResume() { playerView?.unpause() } }
+        if wasPlaying {
+            playerView?.cyclePause()
+            pausedByModalPanel = true
+        }
+        defer {
+            if wasPlaying, shouldResume() {
+                playerView?.unpause()
+                pausedByModalPanel = false
+            }
+        }
         return body()
+    }
+
+    /// Hand playback back after a panel pause that outlived its panel. Safe to
+    /// call when nothing is held.
+    private func resumeAfterModalPanel() {
+        guard pausedByModalPanel else { return }
+        playerView?.unpause()
+        pausedByModalPanel = false
     }
 
     // Finder "Open With" sends files here (odoc Apple Event).
@@ -813,6 +833,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
         runModalPaused { alert.runModal() }
+        // Every failed-update path lands here, and a failure never reaches the
+        // relaunch that normally ends a Download hold — so release it now.
+        resumeAfterModalPanel()
     }
 
     func playerView(_ playerView: PlayerView, didReceiveFile path: String) {
