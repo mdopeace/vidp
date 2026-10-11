@@ -107,7 +107,7 @@ cask "vidp" do
 
   url "https://github.com/$REPO/releases/download/v#{version}/vidp.app.zip"
   name "vidp"
-  desc "Minimal keyboard-driven macOS video player built on libmpv"
+  desc "Minimal keyboard-driven video player built on libmpv"
   homepage "https://github.com/$REPO"
 
   depends_on macos: :ventura
