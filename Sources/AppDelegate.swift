@@ -296,12 +296,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
     /// Alerts are app-modal but leave the video running behind them. Pause for
     /// the panel's lifetime, and resume only if it was playing beforehand.
+    /// `shouldResume` is read after the panel closes, so a panel that leads into
+    /// a relaunch can hold the pause instead of restoring playback.
     @discardableResult
-    private func runModalPaused<T>(_ body: () -> T) -> T {
+    private func runModalPaused<T>(shouldResume: () -> Bool = { true }, _ body: () -> T) -> T {
         // Read mpv live: the delegate's cached isPaused lags by a main-loop hop.
         let wasPlaying = playerView?.boolProperty("pause") == false
         if wasPlaying { playerView?.cyclePause() }
-        defer { if wasPlaying { playerView?.unpause() } }
+        defer { if wasPlaying, shouldResume() { playerView?.unpause() } }
         return body()
     }
 
@@ -642,9 +644,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                 alert.alertStyle = .informational
                 alert.addButton(withTitle: "Download")
                 alert.addButton(withTitle: "Later")
-                let response = self.runModalPaused { alert.runModal() }
-                if response == .alertFirstButtonReturn {
-                    self.downloadAndInstallUpdate(from: json, version: latestVersion)
+                // Download ends in a relaunch, so hold the pause through it
+                // rather than resuming behind the download.
+                var downloading = false
+                self.runModalPaused(shouldResume: { !downloading }) {
+                    downloading = alert.runModal() == .alertFirstButtonReturn
+                    if downloading {
+                        self.downloadAndInstallUpdate(from: json, version: latestVersion)
+                    }
                 }
             }
         }
