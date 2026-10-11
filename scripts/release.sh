@@ -15,7 +15,7 @@
 set -euo pipefail
 
 REPO=mdopeace/vidp            # app repo (origin)
-TAP=mdopeace/homebrew-vidp    # tap repo containing Formula/vidp.rb
+TAP=mdopeace/homebrew-vidp    # tap repo containing Casks/vidp.rb (binary distribution only)
 
 cd "$(dirname "$0")/.."
 
@@ -47,7 +47,7 @@ echo "  - Bump version in Info.plist"
 echo "  - Create & merge PR to main"
 echo "  - Tag v$V"
 echo "  - Create GitHub Release"
-echo "  - Update Homebrew tap"
+echo "  - Update Homebrew tap cask"
 read -p "Proceed? [y/N] " confirm || { echo "Aborted."; exit 1; }
 [[ "$confirm" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
 
@@ -89,15 +89,45 @@ git tag "v$V"
 git push origin "v$V"
 gh release create "v$V" --title "v$V" --generate-notes "$ARCHIVE" "$CHECKSUM"
 
-# 5. Update the tap formula to point at the new tag + its checksum
-SRC="https://github.com/$REPO/archive/refs/tags/v$V.tar.gz"
-SHA=$(curl -sL "$SRC" | shasum -a 256 | awk '{print $1}')
+# 5. Update the tap: a cask, not a formula — only a cask can install an .app
+#    to /Applications, and the app is self-contained so there's nothing to
+#    compile on the user's machine.
+SHA=$(awk '{print $1}' "$CHECKSUM")
 
 rm -rf "$TAP"
 git clone "https://github.com/$TAP" "$TAP"
-F="$TAP/Formula/vidp.rb"
-sed -i '' "s#tags/v[0-9.]*\.tar\.gz#tags/v$V.tar.gz#" "$F"
-sed -i '' "s/sha256 \"[0-9a-f]*\"/sha256 \"$SHA\"/" "$F"
+F="$TAP/Casks/vidp.rb"
+mkdir -p "$(dirname "$F")"
+cat > "$F" <<RUBY
+# frozen_string_literal: true
+
+cask "vidp" do
+  version "$V"
+  sha256 "$SHA"
+
+  url "https://github.com/$REPO/releases/download/v#{version}/vidp.app.zip"
+  name "vidp"
+  desc "Minimal keyboard-driven macOS video player built on libmpv"
+  homepage "https://github.com/$REPO"
+
+  depends_on macos: :ventura
+
+  app "vidp.app"
+
+  # Ad-hoc signed, not notarized, so Gatekeeper blocks the first launch.
+  postflight_steps do
+    run "/usr/bin/xattr",
+        args:         ["-dr", "com.apple.quarantine", "{{appdir}}/vidp.app"],
+        must_succeed: false
+  end
+end
+RUBY
+
+# The migration must land in the same commit as the Formula deletion, or
+# `brew upgrade` errors with "No available formula". Needs Homebrew >= 5.0.6.
+rm -rf "$TAP/Formula"
+printf '{\n  "vidp": "vidp"\n}\n' > "$TAP/tap_migrations.json"
+
 (
     cd "$TAP"
     git checkout -b "vidp-v$V"

@@ -12,6 +12,9 @@ brew tap mdopeace/vidp
 brew install vidp
 ```
 
+That installs to `/Applications` — no compiler, no `brew install mpv`, nothing
+else to set up. The app bundles its own libmpv and ffmpeg, so it runs standalone.
+
 To update to a newer release:
 
 ```sh
@@ -21,21 +24,18 @@ brew update && brew upgrade vidp
 Then launch:
 
 ```sh
-open "$(brew --prefix)/opt/vidp/libexec/vidp.app"
+open /Applications/vidp.app
 ```
 
-To install or update it in `/Applications`:
+Once installed, the app's **Check for Updates** command keeps it up to date. It
+does nothing when you're already on the latest version, so it can't do the
+initial install.
 
-```sh
-cp -R "$(brew --prefix)/opt/vidp/libexec/vidp.app" /Applications/
-```
-
-This overwrites the files in an existing copy, but won't remove any that a new
-version no longer ships.
-
-Once installed, the app's **Check for Updates** command keeps that
-`/Applications` copy up to date. It does nothing when you're already on the
-latest version, so it can't do the initial install.
+> **Apple Silicon only.** Releases are arm64, so the prebuilt binary won't run on
+> Intel. Build from source below if you need x86_64.
+>
+> Because libmpv and ffmpeg are bundled, an update ships a new copy of them —
+> expect a ~25 MB download per upgrade.
 
 ### from source
 
@@ -50,9 +50,11 @@ open vidp.app
 
 ## Requirements
 
-- macOS 13+ (Apple Silicon or Intel)
-- [libmpv](https://mpv.io) (`brew install mpv`)
-- Xcode Command Line Tools
+- macOS 13+ (Apple Silicon for prebuilt releases; Intel can build from source)
+
+Building from source additionally needs [Homebrew](https://brew.sh), the Xcode
+Command Line Tools, and libmpv (`brew install mpv`). Release builds bundle
+libmpv into the app itself, so end users need none of this.
 
 ## Features
 
@@ -78,6 +80,10 @@ open vidp.app
 
 This project links against [libmpv](https://mpv.io), which remains under its own
 [LGPL/GPL license](https://github.com/mpv-player/mpv/blob/master/Copyright).
+Release builds ship copies of libmpv, FFmpeg and their dependencies inside the
+app bundle; see [LICENSES.md](LICENSES.md) for those, and note that
+`rubberband`, `x264` and `x265` are GPL-2.0-or-later, which puts the distributed
+app under GPL terms.
 
 ## Links
 
