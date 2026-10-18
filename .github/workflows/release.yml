@@ -1,0 +1,179 @@
+name: Release
+
+# Queue rather than cancel, so a mid-publish run is never killed.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+# One button in the Actions tab cuts a release: pick a bump, or type an exact
+# version, and the run bumps, tags, builds, publishes and updates the tap.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+      version:
+        description: Exact version, overrides bump (e.g. 1.13.0)
+        type: string
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  publish:
+    runs-on: macos-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      sha: ${{ steps.build.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # GITHUB_TOKEN cannot reach another repo, so the tap needs its own token.
+      # An expired or revoked token is still a non-empty string, so test it.
+      - name: Verify the tap token
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Missing secret HOMEBREW_TAP_TOKEN"
+            exit 1
+          fi
+          gh api repos/mdopeace/homebrew-vidp --jq '.permissions.push' \
+            || { echo "::error::HOMEBREW_TAP_TOKEN cannot read the tap repo"; exit 1; }
+
+      # Unlike QuickTodo's SwiftPM build, build.sh links libmpv: the bundle is
+      # only self-contained because it copies the dylib closure out of the
+      # Cellar, so the runner needs mpv installed before it can build.
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+          brew install mpv
+
+      - name: Resolve version
+        id: resolve
+        env:
+          BUMP: ${{ inputs.bump }}
+          EXACT: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          CURRENT=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Info.plist)
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          if [ -n "$EXACT" ]; then
+            V="$EXACT"
+          else
+            case "$BUMP" in
+              major) V="$((MAJOR + 1)).0.0" ;;
+              minor) V="$MAJOR.$((MINOR + 1)).0" ;;
+              *)     V="$MAJOR.$MINOR.$((PATCH + 1))" ;;
+            esac
+          fi
+          [[ "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "::error::'$V' is not a MAJOR.MINOR.PATCH version"; exit 1; }
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Releasing v$V (current $CURRENT)"
+
+      - name: Bump version
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # The icon carries the version, so it has to be regenerated in the
+          # same commit as Info.plist or the bundle ships a stale one.
+          BR="release/v$VERSION"
+          git checkout -b "$BR"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" Info.plist
+          ./scripts/make-icns.sh
+          git add Info.plist resources/macos/vidp.icns
+
+          # A no-op bump leaves both files unchanged, and git commit would fail.
+          git diff --quiet --cached && {
+            echo "::error::main is already at $VERSION -- nothing to bump"; exit 1; }
+
+          git commit -m "Bump version to $VERSION"
+          # Clear any branch a failed run left behind: the new commit has a
+          # different SHA, so a plain push would be rejected as non-fast-forward.
+          git push --quiet origin ":$BR" 2>/dev/null || true
+          git push -u origin "$BR"
+
+          PR_URL=$(gh pr create --base main --head "$BR" --title "Release v$VERSION" \
+            --body "Bumps the version to $VERSION for release.")
+          gh pr merge --merge --delete-branch || {
+            echo "error: could not merge $BR into main automatically." >&2
+            echo "       The version bump is committed and pushed, and its PR is still open:" >&2
+            echo "         $PR_URL" >&2
+            echo "       Re-run this workflow once it is merged." >&2
+            exit 1
+          }
+
+          # Build the merged commit, not the bump commit.
+          git checkout main
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Build, verify and publish
+        id: build
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          ARCHIVE=vidp.app.zip
+          CHECKSUM=$ARCHIVE.sha256
+          ./scripts/build.sh
+
+          # A bundle that disagrees with its tag shows a permanent fake update.
+          BUILT=$(/usr/libexec/PlistBuddy \
+            -c "Print :CFBundleShortVersionString" vidp.app/Contents/Info.plist)
+          if [ "$BUILT" != "$VERSION" ]; then
+            echo "::error::built bundle reports $BUILT but the release is v$VERSION"; exit 1
+          fi
+
+          ditto -c -k --keepParent vidp.app "$ARCHIVE"
+          shasum -a 256 "$ARCHIVE" > "$CHECKSUM"
+
+          # This also tags HEAD, so a build failure above leaves nothing behind.
+          gh release create "v$VERSION" --title "v$VERSION" --generate-notes \
+            "$ARCHIVE" "$CHECKSUM"
+
+          # ditto embeds mtimes, so every rebuild is a different zip. This SHA is
+          # only valid for the asset uploaded just above.
+          echo "sha=$(awk '{print $1}' "$CHECKSUM")" >> "$GITHUB_OUTPUT"
+
+  tap:
+    needs: publish
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: mdopeace/homebrew-vidp
+          ref: main
+          path: mdopeace/homebrew-vidp
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - uses: actions/checkout@v4
+        with:
+          path: app
+
+      - name: Point the tap at the new release
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ needs.publish.outputs.version }}
+          SHA: ${{ needs.publish.outputs.sha }}
+        run: |
+          set -euo pipefail
+          TAP_DIR=mdopeace/homebrew-vidp ./app/scripts/update-tap.sh "$VERSION" "$SHA"

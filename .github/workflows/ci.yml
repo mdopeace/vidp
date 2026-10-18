@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    # The release workflow's own bump PR shows a red X: GitHub runs no jobs
+    # for GITHUB_TOKEN events.
+    if: github.actor != 'github-actions[bot]'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      # No XCTest target: the app builds via `swiftc Sources/*.swift`, so the
+      # tests live in a script. MediaNameParser needs no libmpv, so this runs
+      # without `brew install mpv` — the whole job is a few seconds.
+      - run: ./scripts/test-parser.sh
