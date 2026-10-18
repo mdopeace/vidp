@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vidp — a video player built on libmpv</title>
+    <meta
+      name="description"
+      content="Vidp is a free, open-source video player for macOS 13+. Keyboard-driven, built on libmpv, and it plays nearly anything mpv can. Native AppKit, no Electron."
+    />
+    <meta name="theme-color" content="#12131a" />
+    <link rel="icon" href="icon.png" />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="Vidp — a video player built on libmpv"
+    />
+    <meta
+      property="og:description"
+      content="Native AppKit video player for macOS. Drag a file in, or open it from Finder. mp4, mkv, webm, mov, avi."
+    />
+    <meta
+      property="og:image"
+      content="https://mdopeace.github.io/vidp/social.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      name="twitter:image"
+      content="https://mdopeace.github.io/vidp/social.png"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <style>
+      :root {
+        --bg: #12131a;
+        --panel: #1a1c24;
+        --line: #33363f;
+        --text: #f2f3f5;
+        --muted: #a8b0bd;
+        --faint: #8b93a1; /* 4.6:1 on --bg */
+        --amber-bg: #1e1a12;
+        --amber-line: #463a24;
+        --amber: #c0a468;
+        --maxw: 980px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+          sans-serif;
+        font-size: 16px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        max-width: var(--maxw);
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+      section {
+        padding: 64px 0;
+        border-top: 1px solid var(--line);
+      }
+      .lbl {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--faint);
+        margin: 0 0 24px;
+      }
+      h1 {
+        font-size: clamp(32px, 5vw, 46px);
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        line-height: 1.1;
+        margin: 0;
+      }
+      /* The line break is the design: "A player that" white, "gets out of the
+     way." grey, each on its own line. Forcing it at the <em> also keeps the
+     colour change aligned with the break. */
+      h1 em {
+        display: block;
+        font-style: normal;
+        color: #7d8590;
+      }
+      /* Headlines get balanced; body copy gets pretty. Short paragraphs (tile
+     and FAQ blurbs) would look cramped if forced to balance. */
+      p,
+      li {
+        text-wrap: pretty;
+      }
+      code {
+        overflow-wrap: anywhere;
+      }
+      h2 {
+        font-size: 20px;
+        font-weight: 650;
+        margin: 0 0 6px;
+        letter-spacing: -0.01em;
+      }
+      code,
+      .cmd {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      /* hero */
+      .hero {
+        display: flex;
+        gap: 48px;
+        align-items: center;
+        padding: 72px 0 64px;
+      }
+      .hero-copy {
+        flex: 1.1;
+        min-width: 0;
+      }
+      .hero-shot {
+        flex: 0 1 auto;
+        min-width: 0;
+      }
+      .eyebrow {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--faint);
+        margin: 0 0 16px;
+      }
+      .sub {
+        font-size: 17px;
+        color: var(--muted);
+        margin: 18px 0 0;
+        max-width: 42ch;
+      }
+      .shot {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      /* install */
+      .install {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 22px;
+        /* Grid items default to min-width:auto, which locks the track to the
+       nowrap command's width and pushes the card past the viewport. */
+        min-width: 0;
+      }
+      .card .tag {
+        font-size: 12px;
+        color: var(--faint);
+        margin: 0 0 18px;
+      }
+      .cmd {
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 10px 12px;
+        font-size: 13px;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .cmd pre {
+        margin: 0;
+        min-width: 0;
+        overflow-x: auto;
+        white-space: pre;
+        scrollbar-width: thin;
+      }
+      .cmd code {
+        overflow-x: auto;
+        white-space: pre;
+        min-width: 0;
+        scrollbar-width: thin;
+      }
+      .cmd code::-webkit-scrollbar {
+        height: 4px;
+      }
+      .cmd code::-webkit-scrollbar-thumb {
+        background: var(--line);
+        border-radius: 2px;
+      }
+      .copy {
+        font: inherit;
+        font-size: 11px;
+        color: var(--muted);
+        background: none;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 3px 9px;
+        cursor: pointer;
+        flex: none;
+      }
+      .copy:hover {
+        color: var(--text);
+        border-color: var(--faint);
+      }
+      .copy.done {
+        color: #3fb950;
+        border-color: #2c4a32;
+      }
+      .copy.failed {
+        color: var(--amber);
+        border-color: var(--amber-line);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--text);
+        color: var(--bg);
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 10px 16px;
+        border-radius: 8px;
+      }
+      .btn:hover {
+        opacity: 0.85;
+      }
+      .steps {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 12px 0 0;
+        padding-left: 18px;
+      }
+      .steps li {
+        margin-bottom: 8px;
+      }
+      .note {
+        font-size: 13px;
+        color: var(--amber);
+        background: var(--amber-bg);
+        border: 1px solid var(--amber-line);
+        border-radius: 9px;
+        padding: 12px 14px;
+        margin: 14px 0 0;
+        line-height: 1.6;
+      }
+      .note code {
+        color: #d8c79e;
+        font-size: 12px;
+      }
+
+      /* gallery */
+      .strip {
+        display: flex;
+        gap: 16px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        padding-bottom: 8px;
+        scrollbar-width: thin;
+      }
+      .strip::-webkit-scrollbar {
+        height: 6px;
+      }
+      .strip::-webkit-scrollbar-thumb {
+        background: var(--line);
+        border-radius: 3px;
+      }
+      .frame {
+        flex: 0 0 auto;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        scroll-snap-align: center;
+        overflow: hidden;
+        width: auto;
+      }
+      .frame img {
+        display: block;
+        height: 300px;
+        width: auto;
+      }
+
+      /* features */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      .tile {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+      }
+      .tile .glyph {
+        font-size: 17px;
+        /* Fixed height so the SVG glyphs put their heading on the same line
+           as the text ones, which fill the font's line box instead. */
+        height: 22px;
+        display: flex;
+        align-items: center;
+      }
+      .tile h3 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 10px 0 0;
+      }
+      .tile p {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 5px 0 0;
+      }
+      .tile .glyph svg {
+        display: block;
+        line-height: 1;
+      }
+
+      /* faq */
+      .faq {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px 32px;
+      }
+      .faq h3 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0 0 6px;
+      }
+      .faq p {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0;
+      }
+
+      /* footer */
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 28px 0 48px;
+        font-size: 12px;
+        color: var(--faint);
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      footer a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      footer a:hover {
+        color: var(--text);
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        footer a.shine {
+          background: linear-gradient(
+            90deg,
+            var(--muted),
+            var(--text),
+            var(--muted)
+          );
+          background-size: 220% 100%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: shine 4s linear infinite;
+        }
+        /* background-position % resolve against (container - image) = -120% here,
+       so -220% fell short and the loop restarted early. 183.33% is exactly one
+       220% image width, so the cycle closes. */
+        @keyframes shine {
+          from {
+            background-position: 183.33% 0;
+          }
+          to {
+            background-position: 0 0;
+          }
+        }
+      }
+
+      /* 650px is the copy column's height, so both hero columns end level. */
+      @media (min-width: 1001px) {
+        .shot img {
+          height: 346px;
+          width: auto;
+        }
+      }
+      /* Tablet keeps the desktop's two-column hero — stacking it looked wrong, and
+     it halved the description to four narrow lines. Only the gap and the shot
+     shrink, so the copy keeps its width. */
+      @media (max-width: 1000px) and (min-width: 721px) {
+        .hero {
+          gap: 32px;
+        }
+        .shot img {
+          max-width: 260px;
+        }
+        .sub {
+          max-width: 52ch;
+        }
+      }
+      @media (max-width: 720px) {
+        .hero {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 32px;
+        }
+        .shot img {
+          max-width: none;
+        }
+        .sub {
+          max-width: 34ch;
+        }
+      }
+      @media (max-width: 860px) {
+        .grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 560px) {
+        .install,
+        .grid,
+        .faq {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Free · Open source · macOS 13+</p>
+          <h1>A player that <em>gets out of the way.</em></h1>
+          <p class="sub">
+            Vidp is a native Mac video player built on libmpv. Drag a file in,
+            or open it from Finder. Everything is a keystroke away, and nothing
+            gets between you and the film.
+          </p>
+          <div class="cmd" style="margin-top: 24px">
+            <pre><code>brew tap mdopeace/vidp
+brew install --cask vidp</code></pre>
+            <button
+              class="copy"
+              data-copy="brew tap mdopeace/vidp
+brew install --cask vidp"
+              aria-live="polite"
+            >
+              copy
+            </button>
+          </div>
+          <p style="font-size: 13px; color: var(--faint); margin: 10px 0 0">
+            Install details and the no-Homebrew route below.
+          </p>
+        </div>
+        <div class="hero-shot">
+          <div class="shot">
+            <img
+              src="screenshots/playing.jpg"
+              width="1200"
+              height="675"
+              alt="Vidp playing a video, with the film title and a 30-second skip indicator above the transport controls, and a progress bar along the bottom"
+            />
+          </div>
+        </div>
+      </div>
+
+      <section id="install">
+        <h2 class="lbl">Install</h2>
+        <div class="install">
+          <div class="card">
+            <h2>With Homebrew</h2>
+            <p class="tag">
+              Recommended — and the update path that just works.
+            </p>
+            <div class="cmd">
+              <code>brew tap mdopeace/vidp</code>
+              <button
+                class="copy"
+                data-copy="brew tap mdopeace/vidp"
+                aria-live="polite"
+              >
+                copy
+              </button>
+            </div>
+            <div class="cmd">
+              <code>brew install --cask vidp</code>
+              <button
+                class="copy"
+                data-copy="brew install --cask vidp"
+                aria-live="polite"
+              >
+                copy
+              </button>
+            </div>
+            <p style="font-size: 13px; color: var(--muted); margin: 14px 0 0">
+              You don't have to upgrade this yourself — Vidp checks for updates
+              on launch, and from the Playback menu. It downloads, verifies and
+              installs in place.
+            </p>
+            <p style="font-size: 13px; color: var(--muted); margin: 8px 0 0">
+              Prefer brew?
+              <b style="color: var(--text)"
+                >brew update && brew upgrade vidp</b
+              >
+              does the same thing.
+            </p>
+          </div>
+          <div class="card">
+            <h2>Without Homebrew</h2>
+            <p class="tag">Grab the .app straight from Releases.</p>
+            <a
+              class="btn"
+              href="https://github.com/mdopeace/vidp/releases/latest/download/vidp.app.zip"
+              >↓ Download for macOS</a
+            >
+            <ol class="steps">
+              <li>
+                Unzip it and drag <code>vidp.app</code> into Applications
+              </li>
+              <li>Launch it, then drop a file on the window</li>
+            </ol>
+            <div class="note">
+              Not notarized, so the first launch may be blocked. macOS 15 and
+              later removed right-click → Open, leaving only Done / Move to Bin.
+              Run this once:
+              <div class="cmd" style="margin-top: 10px">
+                <pre><code>xattr -dr com.apple.quarantine /Applications/vidp.app</code></pre>
+                <button
+                  class="copy"
+                  data-copy="xattr -dr com.apple.quarantine /Applications/vidp.app"
+                  aria-live="polite"
+                >
+                  copy
+                </button>
+              </div>
+              Homebrew installs skip this.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="screens">
+        <h2 class="lbl">Screens</h2>
+        <div
+          class="strip"
+          tabindex="0"
+          role="region"
+          aria-label="Screenshots, scroll horizontally"
+        >
+          <div class="frame">
+            <img
+              src="screenshots/playing.jpg"
+              width="1200"
+              height="675"
+              loading="lazy"
+              alt="A video playing, with the transport controls and the film title and year at the bottom left"
+            />
+          </div>
+          <div class="frame">
+            <img
+              src="screenshots/skip.jpg"
+              width="1200"
+              height="675"
+              loading="lazy"
+              alt="A 30-second skip indicator above the play button after pressing shift and the right arrow"
+            />
+          </div>
+          <div class="frame">
+            <img
+              src="screenshots/volume.jpg"
+              width="1200"
+              height="675"
+              loading="lazy"
+              alt="A speaker icon and 100% above the transport controls after pressing the up arrow"
+            />
+          </div>
+          <div class="frame">
+            <img
+              src="screenshots/settings.jpg"
+              width="1200"
+              height="675"
+              loading="lazy"
+              alt="The Settings sheet over the video, with On-Screen Display and Subtitles sections for font, style, size, colour, outline and shadow"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section id="features">
+        <h2 class="lbl">Everything it does</h2>
+        <div class="grid">
+          <div class="tile">
+            <div class="glyph">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.1"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 20V10" />
+                <path d="m18 14-6-6-6 6" />
+                <path d="M5 20h14" />
+              </svg>
+            </div>
+            <h3>Plays nearly anything</h3>
+            <p>mp4, m4v, mov, mkv, webm, avi — anything libmpv can.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">⌘</div>
+            <h3>Opens from Finder</h3>
+            <p>Double-click a file, or set Vidp as the default player.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">← →</div>
+            <h3>Skip in 10s or 30s</h3>
+            <p>Shift makes it 30. No progress bar hunting.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">P</div>
+            <h3>Picture in Picture</h3>
+            <p>Float it in a corner and keep watching.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">CC</div>
+            <h3>Subtitles your way</h3>
+            <p>Font, size, colour, outline and shadow, all yours.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">↓</div>
+            <h3>Self-contained</h3>
+            <p>Ships its own libmpv and FFmpeg — no brew install mpv.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">↻</div>
+            <h3>Self-updating</h3>
+            <p>Checks GitHub, verifies the download, installs in place.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">♪</div>
+            <h3>Now Playing</h3>
+            <p>Hands off to the macOS controls, keys and AirPlay.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.1"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                <path d="M10 11v6M14 11v6" />
+              </svg>
+            </div>
+            <h3>Uninstalls cleanly</h3>
+            <p>Full cleanup or app-only, from the app menu.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq">
+        <h2 class="lbl">Questions</h2>
+        <div class="faq">
+          <div>
+            <h3>Is it really free?</h3>
+            <p>
+              Yes — MIT licensed, and the source is on GitHub. No account, no
+              trial, no upsell.
+            </p>
+          </div>
+          <div>
+            <h3>Does it need mpv installed?</h3>
+            <p>
+              No. Every build bundles its own libmpv and FFmpeg, so it runs on a
+              Mac that has never heard of Homebrew.
+            </p>
+          </div>
+          <div>
+            <h3>Which Macs does it run on?</h3>
+            <p>
+              macOS 13 or newer. Prebuilt releases are Apple Silicon — build
+              from source on Intel.
+            </p>
+          </div>
+          <div>
+            <h3>Why won't the downloaded app open?</h3>
+            <p>
+              It isn't notarized, and macOS 15 and later removed right-click →
+              Open, so the popup only offers Done / Move to Bin. Run
+              <code
+                >xattr -dr com.apple.quarantine
+                /Applications/vidp.app</code
+              >
+              once and it opens.
+            </p>
+          </div>
+          <div>
+            <h3>How do the keys work?</h3>
+            <p>
+              Space plays and pauses, ← and → skip 10 seconds, ↑ and ↓ set the
+              volume, <code>f</code> goes full screen, <code>p</code> opens
+              Picture in Picture, and <code>⌘,</code> opens Settings.
+            </p>
+          </div>
+          <div>
+            <h3>Where does my data go?</h3>
+            <p>
+              Nowhere. Resume positions and recent files stay on your Mac, and
+              nothing is uploaded anywhere.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <span>MIT licensed · © 2026 Md Mostafijur Rahman</span>
+        <span>
+          <a class="shine" href="https://github.com/mdopeace/vidp">Source</a>
+          ·
+          <a href="https://github.com/mdopeace/vidp/releases">Releases</a>
+          ·
+          <a href="https://github.com/mdopeace/vidp/issues">Report an issue</a>
+        </span>
+      </footer>
+    </div>
+
+    <script>
+      document.querySelectorAll(".copy").forEach(function (btn) {
+        // Captured once, not per click: reading it inside the handler would capture
+        // the feedback text on a second click and never restore the label.
+        var label = btn.textContent;
+        btn.addEventListener("click", function () {
+          var flash = function (text, cls) {
+            btn.textContent = text;
+            btn.classList.add(cls);
+            setTimeout(function () {
+              btn.textContent = label;
+              btn.classList.remove(cls);
+            }, 1400);
+          };
+          var ok = function () {
+            flash("copied", "done");
+          };
+          // writeText rejects when the clipboard permission is denied or the document
+          // isn't focused, which the presence of navigator.clipboard does not rule out.
+          var no = function () {
+            flash("press ⌘C", "failed");
+          };
+          if (navigator.clipboard)
+            navigator.clipboard.writeText(btn.dataset.copy).then(ok).catch(no);
+          else no();
+        });
+      });
+    </script>
+  </body>
+</html>
