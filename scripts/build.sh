@@ -30,8 +30,8 @@ swiftc -O -swift-version 5 \
 cp Info.plist "$APP/Contents/"
 
 # App icon is prebuilt (iconutil can't run inside the Homebrew sandbox).
-# It regenerates automatically on every ./scripts/release.sh run;
-# to rebuild it by hand: ./scripts/make-icns.sh (on your Mac, then commit it).
+# The Release workflow regenerates it on every run; to rebuild it by hand:
+# ./scripts/make-icns.sh (on your Mac, then commit it).
 if [ ! -f resources/macos/vidp.icns ]; then
     echo "error: resources/macos/vidp.icns missing. Run ./scripts/make-icns.sh on your Mac and commit it." >&2
     exit 1

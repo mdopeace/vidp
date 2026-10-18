@@ -120,10 +120,17 @@ app under GPL terms.
 ## Releases
 
 Changes ship to Homebrew users as versioned releases, not per-commit. To cut a
-release, run `./scripts/release.sh` — it reads the current version from `Info.plist`,
-presents a Patch/Minor/Major selector (via a bash `select` menu),
-and handles the full release flow (bump, PR, tag, GitHub Release, tap update).
+release, run the **Release** workflow from the Actions tab. Pick a Patch/Minor/
+Major bump, or type an exact version to override the bump. The run reads the
+current version from `Info.plist` and handles the full flow: version bump via
+PR, tag, build on a macOS runner, GitHub Release, then the Homebrew tap cask.
 
-Requires: [gh](https://cli.github.com) (authenticated).
+From the terminal, `gh workflow run release.yml -f bump=minor` does the same.
+
+One-time setup: the workflow pushes to the tap using the repository secret
+`HOMEBREW_TAP_TOKEN` (Settings → Secrets and variables → Actions). It needs
+write access to `mdopeace/homebrew-vidp` — the default `GITHUB_TOKEN` cannot
+reach another repo, so without it the release publishes and only the tap
+update fails.
 
 Users then update with `brew update && brew upgrade vidp`.
