@@ -1,5 +1,5 @@
 #!/bin/bash
-# Renders docs/screenshots/*.png from the real vidp.app window.
+# Renders docs/screenshots/*.jpg from the real vidp.app window.
 #
 # Unlike quicktodo's script, this cannot render off-screen: the video is an
 # OpenGL layer, which does not draw into a cached bitmap. So the app is
@@ -40,8 +40,9 @@ codesign --force --deep --sign - "$APP"
 codesign --force --deep --sign - "$APP"
 
 cleanup() {
-    # Quit before deleting the clip it has open, or it relaunches.
-    pkill -x vidp 2>/dev/null || true
+    # Kill by pid, not pkill -x vidp: a real Vidp the user is watching would
+    # be named the same and die with the screenshots.
+    [ -n "${PID:-}" ] && kill "$PID" 2>/dev/null || true
     defaults delete "$BUNDLE_ID" 2>/dev/null || true
     rm -rf "$WORK"
 }
@@ -49,39 +50,53 @@ trap cleanup EXIT
 
 # gradients, not testsrc: a colour-bar test pattern reads as a test pattern.
 # Long enough that the 3s HUD auto-hide never fires mid-shot.
-# hqdn3d smooths the filter's dithering -- nothing real is lost from a
-# synthetic gradient, and it takes each PNG from ~750KB to ~50KB.
 ffmpeg -hide_banner -loglevel error \
     -f lavfi -i "gradients=s=1280x720:d=120:speed=0.03" \
-    -vf "hqdn3d=2:2:3:3" -pix_fmt yuv420p -y "$CLIP"
+    -pix_fmt yuv420p -y "$CLIP"
 
 mkdir -p "$OUT"
+# A run killed partway leaves a half-written capture behind, and the next one
+# would leave it in the repo for good.
+rm -f "$OUT"/*.png "$OUT"/*.jpg
 
-pkill -x vidp 2>/dev/null || true
+# `open -a`, not a direct exec: launched outside LaunchServices the app never
+# orders its window in, so there is nothing to capture. The copy's path is
+# unique to this run, which is how the pid is found afterwards.
 open -a "$APP" "$CLIP"
 sleep 5
+PID=$(pgrep -f "$APP/Contents/MacOS/vidp" | head -1)
+if [ -z "$PID" ]; then
+    echo "error: the app did not start. Is vidp.app built?" >&2
+    exit 1
+fi
 
 # Window ids change every launch, so look them up rather than assume. The
 # Settings sheet is a separate window, so find both by title.
+# Prints "<windowid> <x>,<y>,<w>,<h>" for the titled window. Matched on pid,
+# not owner name: a real Vidp the user has open is named the same, and its
+# window is not the one being screenshotted.
 cat > "$WORK/winswift.swift" <<'EOF'
 import CoreGraphics
 import Foundation
+let pid = Int(CommandLine.arguments[1])!
+let title = CommandLine.arguments[2]
 let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
                                       kCGNullWindowID) as? [[String: Any]] ?? []
-for w in list where (w[kCGWindowOwnerName as String] as? String) == "Vidp" {
-    let name = w[kCGWindowName as String] as? String ?? ""
-    let num = w[kCGWindowNumber as String] as? Int ?? -1
+for w in list
+where (w[kCGWindowOwnerPID as String] as? Int) == pid
+    && (w[kCGWindowName as String] as? String) == title {
     guard let d = w[kCGWindowBounds as String] as? [String: Any] else { continue }
-    print("\(name)\t\(num)\t\(Int(d["X"] as! Double)),\(Int(d["Y"] as! Double)),\(Int(d["Width"] as! Double)),\(Int(d["Height"] as! Double))")
+    print("\(w[kCGWindowNumber as String] as? Int ?? -1) "
+        + "\(Int(d["X"] as! Double)),\(Int(d["Y"] as! Double)),"
+        + "\(Int(d["Width"] as! Double)),\(Int(d["Height"] as! Double))")
+    break
 }
 EOF
 swiftc -O "$WORK/winswift.swift" -o "$WORK/winswift"
 
-# Columns are: title, window id, x,y,w,h
-field() { "$WORK/winswift" | awk -F'\t' -v n="$1" -v c="$2" '$1 == n { split($3, r, ","); print (c == 2 ? $2 : r[c - 2]); exit }'; }
-
-WIN=$(field "Vidp" 2)
-RECT=$(field "Vidp" 3),$(field "Vidp" 4),$(field "Vidp" 5),$(field "Vidp" 6)
+# -l takes the window id; -R takes the rect. Both point at the player window,
+# whose title the app sets in AppDelegate and never changes.
+read -r WIN RECT < <("$WORK/winswift" "$PID" Vidp) || true
 if [ -z "$WIN" ]; then
     echo "error: no Vidp window found. Is the app running?" >&2
     exit 1
@@ -90,22 +105,23 @@ fi
 key() { # key <code> [modifier]
     local clause="key code $1"
     [ -n "${2:-}" ] && clause="$clause using {$2}"
-    osascript -e 'tell application "Vidp" to activate' \
+    # Activate by pid: telling System Events to activate "Vidp" would find a
+    # real one first if the user has theirs open.
+    osascript -e "tell application \"System Events\" to set frontmost of the first process whose unix id is $PID to true" \
               -e "tell application \"System Events\" to $clause" >/dev/null
 }
 
-shot() { # shot <name> [settle] [capture-flag...]
-    local name=$1 settle=${2:-0.6}
-    shift 2 2>/dev/null || shift $#
+shot() { # shot <name> <screencapture-flag> [settle]
+    local name=$1 flag=$2 settle=${3:-0.6}
     # -o drops the window shadow, -x drops the click sound. Give the animation
     # a beat to finish or the OSD is caught mid-fade.
     sleep "$settle"
-    screencapture -x -o "$@" "$OUT/$name.png"
+    screencapture -x -o "$flag" "$OUT/$name.png"
     # A Retina capture is ~2.5MB and the page shows these a few hundred px
     # wide, so 1200px is still 2x there.
     sips -Z 1200 "$OUT/$name.png" >/dev/null
     # Video frames, not flat UI: PNG leaves mpv's YUV->RGB dithering as noise
-    # and lands ~800KB. JPEG q88 is ~56KB and indistinguishable at page size.
+    # and lands ~800KB. JPEG is ~24KB and indistinguishable at page size.
     ffmpeg -hide_banner -loglevel error -i "$OUT/$name.png" -q:v 12 -y "$OUT/$name.jpg"
     rm -f "$OUT/$name.png"
     printf '%s  %s  %s\n' "$name.jpg" \
@@ -116,18 +132,18 @@ shot() { # shot <name> [settle] [capture-flag...]
 # Pause first: while playing, the HUD hides itself after 3s, and several shots
 # need it up. Paused, it stays.
 key 49                    # space
-shot playing 0.6 -l"$WIN"
+shot playing "-l$WIN"
 
 key 126                   # up arrow: volume OSD
-shot volume 0.3 -l"$WIN"
+shot volume "-l$WIN" 0.3
 
 key 124 "shift down"      # shift-right: the 30s skip indicator
-shot skip 0.3 -l"$WIN"
+shot skip "-l$WIN" 0.3
 
 # The Settings sheet is its own window, so -l would miss it -- a region
 # capture of the player's rect is what catches both.
 key 43 "command down"     # cmd-, : the Settings sheet
-shot settings 0.8 -R"$RECT"
+shot settings "-R$RECT" 0.8
 
 key 53                    # escape closes the sheet
 sleep 0.5
