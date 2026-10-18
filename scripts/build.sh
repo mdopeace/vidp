@@ -51,6 +51,12 @@ mkdir -p "$FRAMEWORKS"
 
 # libmpv alone pulls in ~47 more non-system dylibs (ffmpeg, libplacebo, x264,
 # x265, rubberband, ...), so this has to recurse rather than copy one.
+#
+# The queue holds each dylib's path in the Cellar, not its copy in the bundle:
+# a dependency recorded as @rpath/X (brotli does this for libbrotlicommon) has
+# no absolute path to copy, but it ships beside its parent, so the parent's own
+# directory is what resolves it. Queueing the bundle copy instead resolved
+# @rpath against Contents/Frameworks and silently dropped the dylib.
 QUEUE=$(mktemp)
 trap 'rm -f "$QUEUE" "$QUEUE.next"' EXIT
 printf '%s\n' "$APP/Contents/MacOS/vidp" > "$QUEUE"
@@ -59,6 +65,7 @@ while [ -s "$QUEUE" ]; do
     while read -r cur; do
         otool -L "$cur" 2>/dev/null | tail -n +2 | awk '{print $1}' | while read -r dep; do
             case "$dep" in /System/* | /usr/lib/*) continue ;; esac
+            case "$dep" in @rpath/*) dep="$(dirname "$cur")/${dep#@rpath/}" ;; esac
             [ -e "$dep" ] || { echo "warning: missing $dep, skipping" >&2; continue; }
             # Keep the symlink's own name (libavcodec.63.dylib) rather than the
             # versioned Cellar name — it's what LC_LOAD_DYLIB records, so the
@@ -66,7 +73,7 @@ while [ -s "$QUEUE" ]; do
             name=$(basename "$dep")
             [ -f "$FRAMEWORKS/$name" ] && continue
             cp -L "$dep" "$FRAMEWORKS/$name"
-            printf '%s\n' "$FRAMEWORKS/$name" >> "$QUEUE.next"
+            printf '%s\n' "$dep" >> "$QUEUE.next"
         done
     done < "$QUEUE"
     mv "$QUEUE.next" "$QUEUE"
