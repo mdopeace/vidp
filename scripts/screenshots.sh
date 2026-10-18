@@ -64,7 +64,9 @@ rm -f "$OUT"/*.png "$OUT"/*.jpg
 # unique to this run, which is how the pid is found afterwards.
 open -a "$APP" "$CLIP"
 sleep 5
-PID=$(pgrep -f "$APP/Contents/MacOS/vidp" | head -1)
+# `|| true`: pgrep exits 1 when nothing matches, and under pipefail that would
+# abort the script here -- before the message below could explain why.
+PID=$(pgrep -f "$APP/Contents/MacOS/vidp" | head -1 || true)
 if [ -z "$PID" ]; then
     echo "error: the app did not start. Is vidp.app built?" >&2
     exit 1

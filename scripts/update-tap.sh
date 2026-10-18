@@ -88,6 +88,10 @@ printf '%s\n' "$CASK" > "$TAP_DIR/Casks/vidp.rb"
     git checkout -b "$BR"
     git add -A
     git commit -m "vidp $VERSION"
+    # Clear any branch a failed run left behind: a re-run for the same version
+    # has a different commit, so a plain push would be rejected as
+    # non-fast-forward.
+    git push --quiet origin ":$BR" 2>/dev/null || true
     git push -u origin "$BR"
     # gh pr create prints the URL on stdout; keep it for the failure handler below.
     TAP_PR_URL=$(gh pr create --base main --head "$BR" --title "vidp $VERSION" \

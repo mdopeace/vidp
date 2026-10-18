@@ -48,8 +48,10 @@ jobs:
             echo "::error::Missing secret HOMEBREW_TAP_TOKEN"
             exit 1
           fi
-          gh api repos/mdopeace/homebrew-vidp --jq '.permissions.push' \
-            || { echo "::error::HOMEBREW_TAP_TOKEN cannot read the tap repo"; exit 1; }
+          # Read the value, not just the exit code: a token with read but not
+          # push prints false and still exits 0, which would fail mid-publish.
+          [ "$(gh api repos/mdopeace/homebrew-vidp --jq '.permissions.push')" = true ] \
+            || { echo "::error::HOMEBREW_TAP_TOKEN cannot push to the tap repo"; exit 1; }
 
       # Unlike QuickTodo's SwiftPM build, build.sh links libmpv: the bundle is
       # only self-contained because it copies the dylib closure out of the
@@ -91,8 +93,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # The icon carries the version, so it has to be regenerated in the
-          # same commit as Info.plist or the bundle ships a stale one.
+          # Regenerated in the same commit as Info.plist, so the icon in the
+          # bundle always matches the sources it was built from. It is
+          # byte-identical across versions, so a no-op bump stages nothing.
           BR="release/v$VERSION"
           git checkout -b "$BR"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" Info.plist
@@ -120,7 +123,10 @@ jobs:
             exit 1
           }
 
-          # Build the merged commit, not the bump commit.
+          # Build the merged commit, not the bump commit. Checked out by name
+          # rather than by the ref this run started from: the workflow_dispatch
+          # ref picker also offers tags and other branches, where there is no
+          # local main to switch to.
           git checkout main
           git fetch origin main
           git reset --hard origin/main
