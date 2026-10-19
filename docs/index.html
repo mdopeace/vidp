@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vidp — a video player built on libmpv</title>
+    <meta
+      name="description"
+      content="Vidp is a free, open-source video player for macOS 13+. Keyboard-driven, built on libmpv, and it plays nearly anything mpv can. Native AppKit, no Electron."
+    />
+    <meta name="theme-color" content="#16171a" />
+    <link rel="icon" href="icon.png" />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="Vidp — a video player built on libmpv"
+    />
+    <meta
+      property="og:description"
+      content="Native AppKit video player for macOS. Drag a file in, or open it from Finder. mp4, mkv, webm, mov, avi."
+    />
+    <meta
+      property="og:image"
+      content="https://mdopeace.github.io/vidp/social.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      name="twitter:image"
+      content="https://mdopeace.github.io/vidp/social.png"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Free · Open source · macOS 13+</p>
+          <h1>A player that <em>gets out of the way.</em></h1>
+          <p class="sub">
+            Vidp is a native Mac video player built on libmpv. Drag a file in,
+            or open it from Finder. Everything is a keystroke away, and nothing
+            gets between you and the film.
+          </p>
+          <div class="cmd" style="margin-top: 24px">
+            <pre><code>brew tap mdopeace/vidp
+brew install --cask vidp</code></pre>
+            <button
+              class="copy"
+              data-copy="brew tap mdopeace/vidp
+brew install --cask vidp"
+              aria-live="polite"
+            >
+              copy
+            </button>
+          </div>
+          <p style="font-size: 13px; color: var(--faint); margin: 10px 0 0">
+            Install details and the no-Homebrew route below.
+          </p>
+        </div>
+        <div class="hero-shot">
+          <div class="shot">
+            <img
+              src="screenshots/playing.png"
+              width="600"
+              height="317"
+              alt="Vidp playing a video, with the film title and a 30-second skip indicator above the transport controls, and a progress bar along the bottom"
+            />
+          </div>
+        </div>
+      </div>
+
+      <section id="install">
+        <h2 class="lbl">Install</h2>
+        <div class="install">
+          <div class="card">
+            <h2>With Homebrew</h2>
+            <p class="tag">
+              Recommended — and the update path that just works.
+            </p>
+            <div class="cmd">
+              <code>brew tap mdopeace/vidp</code>
+              <button
+                class="copy"
+                data-copy="brew tap mdopeace/vidp"
+                aria-live="polite"
+              >
+                copy
+              </button>
+            </div>
+            <div class="cmd">
+              <code>brew install --cask vidp</code>
+              <button
+                class="copy"
+                data-copy="brew install --cask vidp"
+                aria-live="polite"
+              >
+                copy
+              </button>
+            </div>
+            <p style="font-size: 13px; color: var(--muted); margin: 14px 0 0">
+              You don't have to upgrade this yourself — Vidp checks for updates
+              on launch, and from the Playback menu. It downloads, verifies and
+              installs in place.
+            </p>
+            <p style="font-size: 13px; color: var(--muted); margin: 8px 0 0">
+              Prefer brew?
+              <b style="color: var(--text)"
+                >brew update &amp;&amp; brew upgrade vidp</b
+              >
+              does the same thing.
+            </p>
+          </div>
+          <div class="card">
+            <h2>Without Homebrew</h2>
+            <p class="tag">Grab the .app straight from Releases.</p>
+            <a
+              class="btn"
+              href="https://github.com/mdopeace/vidp/releases/latest/download/vidp.app.zip"
+              >↓ Download for macOS</a
+            >
+            <ol class="steps">
+              <li>
+                Unzip it and drag <code>vidp.app</code> into Applications
+              </li>
+              <li>Launch it, then drop a file on the window</li>
+            </ol>
+            <div class="note">
+              Not notarized, so the first launch may be blocked. macOS 15 and
+              later removed right-click → Open, leaving only Done / Move to Bin.
+              Run this once:
+              <div class="cmd" style="margin-top: 10px">
+                <pre><code>xattr -dr com.apple.quarantine /Applications/vidp.app</code></pre>
+                <button
+                  class="copy"
+                  data-copy="xattr -dr com.apple.quarantine /Applications/vidp.app"
+                  aria-live="polite"
+                >
+                  copy
+                </button>
+              </div>
+              Homebrew installs skip this.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="screens">
+        <h2 class="lbl">Screens</h2>
+        <div
+          class="strip"
+          tabindex="0"
+          role="region"
+          aria-label="Screenshots, scroll horizontally"
+        >
+          <div class="frame">
+            <img
+              src="screenshots/playing.png"
+              width="600"
+              height="317"
+              loading="lazy"
+              alt="A video playing, with the transport controls and the film title and year at the bottom left"
+            />
+          </div>
+          <div class="frame">
+            <img
+              src="screenshots/skip.png"
+              width="600"
+              height="317"
+              loading="lazy"
+              alt="A 10-second skip indicator over the video after pressing the right arrow"
+            />
+          </div>
+          <div class="frame">
+            <img
+              src="screenshots/volume.png"
+              width="600"
+              height="317"
+              loading="lazy"
+              alt="A speaker icon and 100% above the transport controls after pressing the up arrow"
+            />
+          </div>
+          <div class="frame">
+            <img
+              src="screenshots/mute.png"
+              width="600"
+              height="317"
+              loading="lazy"
+              alt="A crossed-out speaker icon over the video after muting the volume"
+            />
+          </div>
+          <div class="frame">
+            <img
+              src="screenshots/settings.png"
+              width="600"
+              height="317"
+              loading="lazy"
+              alt="The Settings sheet over the video, with On-Screen Display and Subtitles sections for font, style, size, colour, outline and shadow"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section id="features">
+        <h2 class="lbl">Everything it does</h2>
+        <div class="grid">
+          <div class="tile">
+            <div class="glyph">
+              <svg
+                width="12.9"
+                height="12.9"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.1"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M7 4.5v15l12-7.5z" />
+              </svg>
+            </div>
+            <h3>Plays nearly anything</h3>
+            <p>mp4, m4v, mov, mkv, webm, avi — anything libmpv can.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">
+              <svg
+                width="12.9"
+                height="12.9"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.1"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path
+                  d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"
+                />
+              </svg>
+            </div>
+            <h3>Opens from Finder</h3>
+            <p>Double-click a file, or set Vidp as the default player.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">
+              <svg
+                width="12.9"
+                height="12.9"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.1"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M8 3 4 7l4 4" />
+                <path d="M4 7h16" />
+                <path d="m16 21 4-4-4-4" />
+                <path d="M20 17H4" />
+              </svg>
+            </div>
+            <h3>Skip in 10s or 30s</h3>
+            <p>Shift makes it 30. No progress bar hunting.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">
+              <svg
+                width="12.9"
+                height="12.9"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.1"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4" />
+                <rect width="10" height="7" x="12" y="13" rx="2" />
+              </svg>
+            </div>
+            <h3>Picture in Picture</h3>
+            <p>Float it in a corner and keep watching.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">
+              <svg
+                width="12.9"
+                height="12.9"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.1"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect width="18" height="14" x="3" y="5" rx="2" />
+                <path d="M7 15h4M15 15h2M7 11h2M13 11h4" />
+              </svg>
+            </div>
+            <h3>Subtitles your way</h3>
+            <p>Font, size, colour, outline and shadow, all yours.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">
+              <svg
+                width="12.9"
+                height="12.9"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.1"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <path d="m7 10 5 5 5-5" />
+                <path d="M12 15V3" />
+              </svg>
+            </div>
+            <h3>Self-contained</h3>
+            <p>Ships its own libmpv and FFmpeg — no brew install mpv.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">
+              <svg
+                width="12.9"
+                height="12.9"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.1"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path
+                  d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"
+                />
+                <path d="M21 3v5h-5" />
+              </svg>
+            </div>
+            <h3>Self-updating</h3>
+            <p>Checks GitHub, verifies the download, installs in place.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">
+              <svg
+                width="12.9"
+                height="12.9"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.1"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+              </svg>
+            </div>
+            <h3>Now Playing</h3>
+            <p>Hands off to the macOS controls, keys and AirPlay.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">
+              <svg
+                width="12.9"
+                height="12.9"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.1"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                <path d="M10 11v6M14 11v6" />
+              </svg>
+            </div>
+            <h3>Uninstalls cleanly</h3>
+            <p>Full cleanup or app-only, from the app menu.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq">
+        <h2 class="lbl">Questions</h2>
+        <div class="faq">
+          <div>
+            <h3>Is it really free?</h3>
+            <p>
+              Yes — MIT licensed, and the source is on GitHub. No account, no
+              trial, no upsell.
+            </p>
+          </div>
+          <div>
+            <h3>Does it need mpv installed?</h3>
+            <p>
+              No. Every build bundles its own libmpv and FFmpeg, so it runs on a
+              Mac that has never heard of Homebrew.
+            </p>
+          </div>
+          <div>
+            <h3>Which Macs does it run on?</h3>
+            <p>
+              macOS 13 or newer. Prebuilt releases are Apple Silicon — build
+              from source on Intel.
+            </p>
+          </div>
+          <div>
+            <h3>Why won't the downloaded app open?</h3>
+            <p>
+              It isn't notarized, and macOS 15 and later removed right-click →
+              Open, so the popup only offers Done / Move to Bin. Run
+              <code
+                >xattr -dr com.apple.quarantine
+                /Applications/vidp.app</code
+              >
+              once and it opens.
+            </p>
+          </div>
+          <div>
+            <h3>How do the keys work?</h3>
+            <p>
+              Space plays and pauses, ← and → skip 10 seconds, ↑ and ↓ set the
+              volume, <code>f</code> goes full screen, <code>p</code> opens
+              Picture in Picture, and <code>⌘,</code> opens Settings.
+            </p>
+          </div>
+          <div>
+            <h3>Where does my data go?</h3>
+            <p>
+              Nowhere. Resume positions and recent files stay on your Mac, and
+              nothing is uploaded anywhere.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <span>MIT licensed · © 2026 Md Mostafijur Rahman</span>
+        <span>
+          <a class="shine" href="https://github.com/mdopeace/vidp">Source</a>
+          ·
+          <a href="https://github.com/mdopeace/vidp/releases">Releases</a>
+          ·
+          <a href="https://github.com/mdopeace/vidp/issues">Report an issue</a>
+        </span>
+      </footer>
+    </div>
+
+    <script src="copy.js"></script>
+  </body>
+</html>
