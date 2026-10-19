@@ -1,0 +1,396 @@
+      :root {
+        --bg: #16171a;
+        --panel: #0e0f11;
+        --line: #2a2c31;
+        --text: #f2f3f5;
+        --muted: #9aa1ab;
+        --faint: #82868d; /* 4.84:1 on --bg */
+        --amber-bg: #1a1710;
+        --amber-line: #3a3222;
+        --amber: #948464; /* 4.89:1 on --amber-bg */
+        --maxw: 980px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+          sans-serif;
+        font-size: 16px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        max-width: var(--maxw);
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+      section {
+        padding: 64px 0;
+        border-top: 1px solid var(--line);
+      }
+      .lbl {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--faint);
+        margin: 0 0 24px;
+      }
+      h1 {
+        font-size: clamp(32px, 5vw, 46px);
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        line-height: 1.1;
+        margin: 0;
+      }
+      /* The line break is the design: "A player that" white, "gets out of the
+     way." grey, each on its own line. Forcing it at the <em> also keeps the
+     colour change aligned with the break. */
+      h1 em {
+        display: block;
+        font-style: normal;
+        color: #7d8590;
+      }
+      /* Headlines get balanced; body copy gets pretty. Short paragraphs (tile
+     and FAQ blurbs) would look cramped if forced to balance. */
+      p,
+      li {
+        text-wrap: pretty;
+      }
+      code {
+        overflow-wrap: anywhere;
+      }
+      h2 {
+        font-size: 20px;
+        font-weight: 650;
+        margin: 0 0 6px;
+        letter-spacing: -0.01em;
+      }
+      code,
+      .cmd {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      /* hero */
+      .hero {
+        display: flex;
+        gap: 48px;
+        align-items: center;
+        padding: 72px 0 64px;
+      }
+      .hero-copy {
+        flex: 1;
+        min-width: 0;
+      }
+      .hero-shot {
+        flex: 0 1 auto;
+        min-width: 0;
+      }
+      .eyebrow {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--faint);
+        margin: 0 0 16px;
+      }
+      .sub {
+        font-size: 17px;
+        color: var(--muted);
+        margin: 18px 0 0;
+        max-width: 42ch;
+      }
+      .shot {
+        overflow: hidden;
+      }
+      .shot img {
+        display: block;
+        width: auto;
+        height: auto;
+        max-width: 360px;
+        margin: 0 auto;
+      }
+
+      /* install */
+      .install {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 22px;
+        /* Grid items default to min-width:auto, which locks the track to the
+       nowrap command's width and pushes the card past the viewport. */
+        min-width: 0;
+      }
+      .card .tag {
+        font-size: 12px;
+        color: var(--faint);
+        margin: 0 0 18px;
+      }
+      .cmd {
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 10px 12px;
+        font-size: 13px;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .cmd pre {
+        margin: 0;
+        min-width: 0;
+        overflow-x: auto;
+        white-space: pre;
+        scrollbar-width: thin;
+      }
+      .cmd code {
+        overflow-x: auto;
+        white-space: pre;
+        min-width: 0;
+        scrollbar-width: thin;
+      }
+      .cmd code::-webkit-scrollbar {
+        height: 4px;
+      }
+      .cmd code::-webkit-scrollbar-thumb {
+        background: var(--line);
+        border-radius: 2px;
+      }
+      .copy {
+        font: inherit;
+        font-size: 11px;
+        color: var(--muted);
+        background: none;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 3px 9px;
+        cursor: pointer;
+        flex: none;
+      }
+      .copy:hover {
+        color: var(--text);
+        border-color: var(--faint);
+      }
+      .copy.done {
+        color: #3fb950;
+        border-color: #2c4a32;
+      }
+      .copy.failed {
+        color: var(--amber);
+        border-color: var(--amber-line);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--text);
+        color: var(--bg);
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 10px 16px;
+        border-radius: 8px;
+      }
+      .btn:hover {
+        opacity: 0.85;
+      }
+      .steps {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 12px 0 0;
+        padding-left: 18px;
+      }
+      .steps li {
+        margin-bottom: 8px;
+      }
+      .note {
+        font-size: 13px;
+        color: var(--amber);
+        background: var(--amber-bg);
+        border: 1px solid var(--amber-line);
+        border-radius: 9px;
+        padding: 12px 14px;
+        margin: 14px 0 0;
+        line-height: 1.6;
+      }
+      .note code {
+        color: #b9a87f;
+        font-size: 12px;
+      }
+
+      /* gallery */
+      .strip {
+        display: flex;
+        gap: 16px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        padding-bottom: 8px;
+        scrollbar-width: thin;
+      }
+      .strip::-webkit-scrollbar {
+        height: 6px;
+      }
+      .strip::-webkit-scrollbar-thumb {
+        background: var(--line);
+        border-radius: 3px;
+      }
+      .frame {
+        flex: 0 0 auto;
+        scroll-snap-align: center;
+        overflow: hidden;
+        width: auto;
+      }
+      .frame img {
+        display: block;
+        width: auto;
+        height: auto;
+      }
+
+      /* features */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      .tile {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+      }
+      .tile .glyph {
+        height: 22px;
+        display: flex;
+        align-items: center;
+      }
+      .tile h3 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 10px 0 0;
+      }
+      .tile p {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 5px 0 0;
+      }
+      .tile .glyph svg {
+        display: block;
+        line-height: 1;
+      }
+
+      /* faq */
+      .faq {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px 32px;
+      }
+      .faq h3 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0 0 6px;
+      }
+      .faq p {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0;
+      }
+
+      /* footer */
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 28px 0 48px;
+        font-size: 12px;
+        color: var(--faint);
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      footer a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      footer a:hover {
+        color: var(--text);
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        footer a.shine {
+          background: linear-gradient(
+            90deg,
+            var(--muted),
+            var(--text),
+            var(--muted)
+          );
+          background-size: 220% 100%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: shine 4s linear infinite;
+        }
+        /* background-position % resolve against (container - image) = -120% here,
+       so -220% fell short and the loop restarted early. 183.33% is exactly one
+       220% image width, so the cycle closes. */
+        @keyframes shine {
+          from {
+            background-position: 183.33% 0;
+          }
+          to {
+            background-position: 0 0;
+          }
+        }
+      }
+
+      /* Tablet keeps the desktop's two-column hero — stacking it looked wrong, and
+     it halved the description to four narrow lines. Only the gap and the shot
+     shrink, so the copy keeps its width. */
+      @media (max-width: 1000px) and (min-width: 721px) {
+        .hero {
+          gap: 32px;
+        }
+        .shot img {
+          max-width: 260px;
+        }
+        .sub {
+          max-width: 52ch;
+        }
+      }
+      @media (max-width: 720px) {
+        .hero {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 32px;
+        }
+        .shot img {
+          max-width: 100%;
+        }
+        .sub {
+          max-width: 34ch;
+        }
+      }
+      @media (max-width: 860px) {
+        .grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 560px) {
+        .install,
+        .grid,
+        .faq {
+          grid-template-columns: 1fr;
+        }
+      }
