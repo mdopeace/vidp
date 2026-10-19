@@ -8,7 +8,7 @@
       name="description"
       content="Vidp is a free, open-source video player for macOS 13+. Keyboard-driven, built on libmpv, and it plays nearly anything mpv can. Native AppKit, no Electron."
     />
-    <meta name="theme-color" content="#12131a" />
+    <meta name="theme-color" content="#16171a" />
     <link rel="icon" href="icon.png" />
     <meta property="og:type" content="website" />
     <meta
@@ -32,15 +32,15 @@
     <meta name="twitter:card" content="summary_large_image" />
     <style>
       :root {
-        --bg: #12131a;
-        --panel: #1a1c24;
-        --line: #33363f;
+        --bg: #16171a;
+        --panel: #0e0f11;
+        --line: #2a2c31;
         --text: #f2f3f5;
-        --muted: #a8b0bd;
-        --faint: #8b93a1; /* 4.6:1 on --bg */
-        --amber-bg: #1e1a12;
-        --amber-line: #463a24;
-        --amber: #c0a468;
+        --muted: #9aa1ab;
+        --faint: #82868d; /* 4.84:1 on --bg */
+        --amber-bg: #1a1710;
+        --amber-line: #3a3222;
+        --amber: #948464; /* 4.89:1 on --amber-bg */
         --maxw: 980px;
       }
       * {
@@ -150,6 +150,8 @@
         display: block;
         width: 100%;
         height: auto;
+        max-width: 360px;
+        margin: 0 auto;
       }
 
       /* install */
@@ -263,7 +265,7 @@
         line-height: 1.6;
       }
       .note code {
-        color: #d8c79e;
+        color: #b9a87f;
         font-size: 12px;
       }
 
@@ -474,8 +476,8 @@ brew install --cask vidp"
           <div class="shot">
             <img
               src="screenshots/playing.png"
-              width="1200"
-              height="675"
+              width="600"
+              height="319"
               alt="Vidp playing a video, with the film title and a 30-second skip indicator above the transport controls, and a progress bar along the bottom"
             />
           </div>
@@ -568,8 +570,8 @@ brew install --cask vidp"
           <div class="frame">
             <img
               src="screenshots/playing.png"
-              width="1200"
-              height="675"
+              width="600"
+              height="319"
               loading="lazy"
               alt="A video playing, with the transport controls and the film title and year at the bottom left"
             />
@@ -577,8 +579,8 @@ brew install --cask vidp"
           <div class="frame">
             <img
               src="screenshots/skip.png"
-              width="1200"
-              height="675"
+              width="600"
+              height="319"
               loading="lazy"
               alt="A 30-second skip indicator above the play button after pressing shift and the right arrow"
             />
@@ -586,8 +588,8 @@ brew install --cask vidp"
           <div class="frame">
             <img
               src="screenshots/skip10.png"
-              width="1200"
-              height="675"
+              width="600"
+              height="319"
               loading="lazy"
               alt="A 10-second skip indicator over the video after pressing the right arrow"
             />
@@ -595,8 +597,8 @@ brew install --cask vidp"
           <div class="frame">
             <img
               src="screenshots/volume.png"
-              width="1200"
-              height="675"
+              width="600"
+              height="319"
               loading="lazy"
               alt="A speaker icon and 100% above the transport controls after pressing the up arrow"
             />
@@ -604,8 +606,8 @@ brew install --cask vidp"
           <div class="frame">
             <img
               src="screenshots/mute.png"
-              width="1200"
-              height="675"
+              width="600"
+              height="319"
               loading="lazy"
               alt="A crossed-out speaker icon over the video after muting the volume"
             />
@@ -613,8 +615,8 @@ brew install --cask vidp"
           <div class="frame">
             <img
               src="screenshots/settings.png"
-              width="1200"
-              height="675"
+              width="600"
+              height="319"
               loading="lazy"
               alt="The Settings sheet over the video, with On-Screen Display and Subtitles sections for font, style, size, colour, outline and shadow"
             />
