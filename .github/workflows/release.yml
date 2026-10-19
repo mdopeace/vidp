@@ -93,6 +93,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          # The dispatch ref may be a tag; branch from main so the merge
+          # can't revert anything main gained since.
+          git fetch origin main && git checkout -B main origin/main
+
           # Regenerated in the same commit as Info.plist, so the icon in the
           # bundle always matches the sources it was built from. It is
           # byte-identical across versions, so a no-op bump stages nothing.
@@ -123,10 +127,7 @@ jobs:
             exit 1
           }
 
-          # Build the merged commit, not the bump commit. Checked out by name
-          # rather than by the ref this run started from: the workflow_dispatch
-          # ref picker also offers tags and other branches, where there is no
-          # local main to switch to.
+          # Build the merged commit, not the bump commit.
           git checkout main
           git fetch origin main
           git reset --hard origin/main
