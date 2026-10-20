@@ -293,19 +293,6 @@
         font-size: 13px;
         line-height: 1;
       }
-      /* FA glyphs differ in optical size at the same em — solid shapes read
-       big, rings and notes read small — so nudge the outliers. */
-      .tile .glyph .fa-play {
-        font-size: 12px;
-      }
-      .tile .glyph .fa-folder-open,
-      .tile .glyph .fa-arrows-rotate,
-      .tile .glyph .fa-music {
-        font-size: 14px;
-      }
-      .tile .glyph .fa-rotate-right {
-        font-size: 15px;
-      }
 
       /* faq */
       .faq {
