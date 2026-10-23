@@ -46,6 +46,8 @@ final class HUDOverlayView: NSView {
     private var muteGlass: NSGlassEffectView!
     private var audioGlass: NSGlassEffectView!
     private var subsGlass: NSGlassEffectView!
+    private var speedGlass: NSGlassEffectView!
+    private var speedButton: NSButton!
     private var settingsSheet: NSWindow?
     private var settingsMonitor: Any?
     var transportStack: NSStackView!
@@ -130,7 +132,7 @@ final class HUDOverlayView: NSView {
             topLeftRow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 36),
         ])
 
-        // Top-right: mute + audio + subtitles + pip
+        // Top-right: mute + audio + subtitles + speed + pip
         muteGlass = makeTransportButton(
             symbol: "speaker.wave.2", pointSize: 15, diameter: 40,
             action: #selector(muteTapped))
@@ -140,10 +142,27 @@ final class HUDOverlayView: NSView {
         subsGlass = makeTransportButton(
             symbol: "captions.bubble", pointSize: 15, diameter: 40,
             action: #selector(subtitleTapped))
+        speedButton = NSButton(title: "1x", target: self, action: #selector(speedTapped))
+        speedButton.isBordered = false
+        speedButton.focusRingType = .none
+        speedButton.contentTintColor = .white
+        speedButton.font = .monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
+        speedButton.alignment = .center
+        speedButton.translatesAutoresizingMaskIntoConstraints = false
+        speedGlass = NSGlassEffectView()
+        speedGlass.style = .regular
+        speedGlass.cornerRadius = 20
+        speedGlass.contentView = speedButton
+        speedGlass.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            speedGlass.widthAnchor.constraint(equalToConstant: 56),
+            speedGlass.heightAnchor.constraint(equalToConstant: 40),
+        ])
+        speedButton.toolTip = "Playback speed"
         let pipGlass = makeTransportButton(
             symbol: "pip.enter", pointSize: 15, diameter: 40,
             action: #selector(pipTapped))
-        let topRow = NSStackView(views: [muteGlass, audioGlass, subsGlass, pipGlass])
+        let topRow = NSStackView(views: [muteGlass, audioGlass, subsGlass, speedGlass, pipGlass])
         topRow.spacing = 12
         topRow.alignment = .centerY
         topRow.translatesAutoresizingMaskIntoConstraints = false
@@ -152,6 +171,7 @@ final class HUDOverlayView: NSView {
             topRow.topAnchor.constraint(equalTo: topAnchor, constant: 36),
             topRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -36),
         ])
+        updateSpeedButton()
 
         // Title above progress bar, left-aligned
         titleLabel = NSTextField(labelWithString: "")
@@ -339,6 +359,30 @@ final class HUDOverlayView: NSView {
     @objc private func muteTapped() {
         playerView?.toggleMute()
         resetHideTimer()
+    }
+
+    @objc private func speedTapped() {
+        playerView?.cycleSpeed()
+        updateSpeedButton()
+        resetHideTimer()
+    }
+
+    func updateSpeedButton() {
+        let speed = playerView?.doubleProperty("speed") ?? 1.0
+        let formatted = formatSpeed(speed)
+        speedButton?.title = formatted
+        speedButton?.toolTip = "Playback speed: \(formatted)"
+    }
+
+    private func formatSpeed(_ value: Double) -> String {
+        let rounded = round(value * 100) / 100
+        var text = String(format: "%.2f", rounded)
+        if text.hasSuffix(".00") {
+            text = String(text.dropLast(3))
+        } else if text.hasSuffix("0") {
+            text = String(text.dropLast())
+        }
+        return "\(text)x"
     }
 
     func updateMuteIcon(muted: Bool) {
