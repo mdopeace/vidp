@@ -35,8 +35,11 @@ final class HUDOverlayView: NSView {
     private(set) var isPaused: Bool = false
     private(set) var isFileLoaded: Bool = false
     private let hideDelay: TimeInterval = 3.0
+    private let pausedTitleDelay: TimeInterval = 10.0
     weak var playerView: PlayerView?
     private var wasPlayingBeforeSettings = false
+    private var controlViews: [NSView] = []
+    private var isPausedTitleVisible = false
 
     private var playGlass: NSGlassEffectView!
     private var rewindGlass: NSGlassEffectView!
@@ -62,8 +65,12 @@ final class HUDOverlayView: NSView {
     private var wasHidden = false
     private var isScrubbing = false
     private var wasPlayingBeforeScrub = false
+    private var titleCardView: NSView!
+    private var titleStack: NSStackView!
     private var titleLabel: NSTextField!
     private var metaLabel: NSTextField!
+    private var pausedTitleLabel: NSTextField!
+    private var pausedMetaLabel: NSTextField!
     private var metaHeight: NSLayoutConstraint!
     private var smoothTimer: Timer?
     // mpv_command blocks the main thread; seeking on every mouseMove stalls the
@@ -82,6 +89,10 @@ final class HUDOverlayView: NSView {
     // video's aspect ratio, so width-scaling gave every video a different size.
     static let titlePointSize: CGFloat = 30
     static let metaScale: CGFloat = 2.0 / 3.0
+    private static let pausedTitlePointSize: CGFloat = titlePointSize * 1.5
+    private static let pausedMetaPointSize: CGFloat = titlePointSize * metaScale * 1.5
+    private static let topControlInset: CGFloat = 36
+    private static let topControlDiameter: CGFloat = 40
     var volumeIconWidth: NSLayoutConstraint!
     var volumeIconHeight: NSLayoutConstraint!
     var volumeCenterY: NSLayoutConstraint!
@@ -116,10 +127,10 @@ final class HUDOverlayView: NSView {
 
         // Top-left: back + support buttons
         let backGlass = makeTransportButton(
-            symbol: "chevron.left", pointSize: 15, diameter: 40,
+            symbol: "chevron.left", pointSize: 15, diameter: Self.topControlDiameter,
             action: #selector(backTapped))
         let supportGlass = makeTransportButton(
-            symbol: "heart", pointSize: 15, diameter: 40,
+            symbol: "heart", pointSize: 15, diameter: Self.topControlDiameter,
             action: #selector(supportTapped))
         (supportGlass.contentView as? NSButton)?.toolTip = "Support Vidp — Buy Me a Coffee"
         let topLeftRow = NSStackView(views: [backGlass, supportGlass])
@@ -128,19 +139,19 @@ final class HUDOverlayView: NSView {
         topLeftRow.translatesAutoresizingMaskIntoConstraints = false
         addSubview(topLeftRow)
         NSLayoutConstraint.activate([
-            topLeftRow.topAnchor.constraint(equalTo: topAnchor, constant: 36),
+            topLeftRow.topAnchor.constraint(equalTo: topAnchor, constant: Self.topControlInset),
             topLeftRow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 36),
         ])
 
         // Top-right: mute + audio + subtitles + speed + pip
         muteGlass = makeTransportButton(
-            symbol: "speaker.wave.2", pointSize: 15, diameter: 40,
+            symbol: "speaker.wave.2", pointSize: 15, diameter: Self.topControlDiameter,
             action: #selector(muteTapped))
         audioGlass = makeTransportButton(
-            symbol: "waveform", pointSize: 15, diameter: 40,
+            symbol: "waveform", pointSize: 15, diameter: Self.topControlDiameter,
             action: #selector(audioTapped))
         subsGlass = makeTransportButton(
-            symbol: "captions.bubble", pointSize: 15, diameter: 40,
+            symbol: "captions.bubble", pointSize: 15, diameter: Self.topControlDiameter,
             action: #selector(subtitleTapped))
         speedButton = NSButton(title: "1x", target: self, action: #selector(speedTapped))
         speedButton.isBordered = false
@@ -160,7 +171,7 @@ final class HUDOverlayView: NSView {
         ])
         speedButton.toolTip = "Playback speed"
         let pipGlass = makeTransportButton(
-            symbol: "pip.enter", pointSize: 15, diameter: 40,
+            symbol: "pip.enter", pointSize: 15, diameter: Self.topControlDiameter,
             action: #selector(pipTapped))
         let topRow = NSStackView(views: [muteGlass, audioGlass, subsGlass, speedGlass, pipGlass])
         topRow.spacing = 12
@@ -168,12 +179,19 @@ final class HUDOverlayView: NSView {
         topRow.translatesAutoresizingMaskIntoConstraints = false
         addSubview(topRow)
         NSLayoutConstraint.activate([
-            topRow.topAnchor.constraint(equalTo: topAnchor, constant: 36),
+            topRow.topAnchor.constraint(equalTo: topAnchor, constant: Self.topControlInset),
             topRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -36),
         ])
         updateSpeedButton()
 
         // Title above progress bar, left-aligned
+        titleCardView = NSView()
+        titleCardView.translatesAutoresizingMaskIntoConstraints = false
+        titleCardView.wantsLayer = true
+        titleCardView.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.68).cgColor
+        titleCardView.isHidden = true
+        addSubview(titleCardView)
+
         titleLabel = NSTextField(labelWithString: "")
         titleLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName, size: Self.titlePointSize,
                                           bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
@@ -190,7 +208,6 @@ final class HUDOverlayView: NSView {
         titleLabel.setContentHuggingPriority(.init(1), for: .horizontal)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        addSubview(titleLabel)
         applyTitleStyle()
 
         // Meta line above the title: S01E01 / year at 2/3 size, half opacity
@@ -202,6 +219,38 @@ final class HUDOverlayView: NSView {
         metaLabel.lineBreakMode = .byTruncatingTail
         metaLabel.translatesAutoresizingMaskIntoConstraints = false
         metaLabel.isHidden = true
+
+        pausedTitleLabel = NSTextField(labelWithString: "")
+        pausedTitleLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName,
+                                                     size: Self.pausedTitlePointSize,
+                                                     bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        pausedTitleLabel.textColor = .white
+        pausedTitleLabel.lineBreakMode = .byWordWrapping
+        pausedTitleLabel.maximumNumberOfLines = 0
+        pausedTitleLabel.cell?.wraps = true
+        pausedTitleLabel.cell?.isScrollable = false
+        pausedTitleLabel.setContentHuggingPriority(.required, for: .vertical)
+        pausedTitleLabel.setContentCompressionResistancePriority(.required, for: .vertical)
+        pausedTitleLabel.setContentCompressionResistancePriority(.init(1), for: .horizontal)
+        pausedTitleLabel.setContentHuggingPriority(.init(1), for: .horizontal)
+        pausedTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        pausedMetaLabel = NSTextField(labelWithString: "")
+        pausedMetaLabel.font = AppSettings.hudFont(named: AppSettings.hudFontName,
+                                                    size: Self.pausedMetaPointSize,
+                                                    bold: AppSettings.hudBold, italic: AppSettings.hudItalic)
+        pausedMetaLabel.textColor = metaLabel.textColor
+        pausedMetaLabel.lineBreakMode = .byTruncatingTail
+        pausedMetaLabel.translatesAutoresizingMaskIntoConstraints = false
+        pausedMetaLabel.isHidden = true
+
+        titleStack = NSStackView(views: [pausedMetaLabel, pausedTitleLabel])
+        titleStack.orientation = .vertical
+        titleStack.alignment = .leading
+        titleStack.spacing = 2
+        titleStack.translatesAutoresizingMaskIntoConstraints = false
+        titleCardView.addSubview(titleStack)
+        addSubview(titleLabel)
         addSubview(metaLabel)
 
         // Bottom progress bar
@@ -250,6 +299,13 @@ final class HUDOverlayView: NSView {
         addSubview(bottomRightRow)
 
         NSLayoutConstraint.activate([
+            titleCardView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            titleCardView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            titleCardView.topAnchor.constraint(equalTo: topAnchor),
+            titleCardView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            titleStack.leadingAnchor.constraint(equalTo: titleCardView.leadingAnchor, constant: 42),
+            titleStack.trailingAnchor.constraint(equalTo: titleCardView.trailingAnchor, constant: -42),
+            titleStack.topAnchor.constraint(equalTo: titleCardView.topAnchor, constant: Self.topControlInset),
             barRow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 36),
             barRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -36),
             barRow.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -36),
@@ -260,15 +316,18 @@ final class HUDOverlayView: NSView {
             titleLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.7),
             metaLabel.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
             metaLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.7),
+            pausedTitleLabel.widthAnchor.constraint(equalTo: titleStack.widthAnchor),
+            pausedMetaLabel.widthAnchor.constraint(equalTo: titleStack.widthAnchor),
             elapsedLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
             remainingLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
         ])
 
-        // Hidden views still occupy Auto Layout space: keep the meta→title pin
-        // always live and collapse to zero height while hidden.
-        metaLabel.bottomAnchor.constraint(equalTo: titleLabel.topAnchor, constant: -2).isActive = true
         metaHeight = metaLabel.heightAnchor.constraint(equalToConstant: 0)
         metaHeight.isActive = true
+        metaLabel.bottomAnchor.constraint(equalTo: titleLabel.topAnchor, constant: -2).isActive = true
+
+        controlViews = [transportStack, topLeftRow, topRow, barRow, bottomRightRow, titleLabel, metaLabel]
+        controlViews.forEach { $0.alphaValue = 1 }
 
         addTrackingArea(NSTrackingArea(
             rect: .zero,
@@ -283,6 +342,7 @@ final class HUDOverlayView: NSView {
     override func layout() {
         super.layout()
         titleLabel.preferredMaxLayoutWidth = bounds.width * 0.7
+        pausedTitleLabel.preferredMaxLayoutWidth = bounds.width * 0.84
     }
 
     @available(*, unavailable)
@@ -502,6 +562,8 @@ final class HUDOverlayView: NSView {
         progressBar.trackFillColor = AppSettings.progressNSColor
         applyTitleStyle()
         applyMetaStyle(size: Self.titlePointSize * Self.metaScale)
+        applyPausedTitleStyle()
+        applyPausedMetaStyle()
         // layout() no longer runs per-pass, so this is what carries a font change
         // to the OSD label.
         volumeLabel?.font = AppSettings.hudFont(named: AppSettings.hudFontName,
@@ -606,7 +668,7 @@ final class HUDOverlayView: NSView {
     }
 
     private func resetHideTimer() {
-        guard isFileLoaded, !isPaused else { return }
+        guard isFileLoaded else { return }
         startHideTimer()
     }
 
@@ -619,7 +681,8 @@ final class HUDOverlayView: NSView {
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        alphaValue > 0.01 ? super.hitTest(point) : nil
+        guard alphaValue > 0.01 else { return nil }
+        return isPausedTitleVisible ? self : super.hitTest(point)
     }
 
     override func updateTrackingAreas() {
@@ -633,18 +696,35 @@ final class HUDOverlayView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        guard isFileLoaded, !isPaused else { return }
+        guard isFileLoaded else { return }
         showHUD()
         startHideTimer()
     }
 
     override func mouseExited(with event: NSEvent) {
-        guard isFileLoaded, !isPaused else { return }
-        hideHUD()
+        guard isFileLoaded else { return }
+        if isPaused {
+            startHideTimer()
+        } else {
+            hideHUD()
+        }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard isPausedTitleVisible else {
+            super.mouseDown(with: event)
+            return
+        }
+        showHUD()
+        startHideTimer()
     }
 
     private func showHUD() {
         guard isFileLoaded else { return }
+        if isPausedTitleVisible {
+            isPausedTitleVisible = false
+            setControlsVisible(true)
+        }
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.2
             self.animator().alphaValue = 1.0
@@ -660,6 +740,7 @@ final class HUDOverlayView: NSView {
     }
 
     private func hideHUD() {
+        guard !isPaused else { return }
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.2
             self.animator().alphaValue = 0.0
@@ -669,6 +750,47 @@ final class HUDOverlayView: NSView {
         stopDisplayTimer()
         volumeCenterY?.isActive = true
         volumeAboveTransport?.isActive = false
+    }
+
+    private func showPausedTitleCard() {
+        guard isFileLoaded, isPaused, !isPausedTitleVisible else { return }
+        isPausedTitleVisible = true
+        titleCardView.isHidden = false
+        stopDisplayTimer()
+        setSubPos(100)
+        volumeStack?.alphaValue = 0
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.25
+            controlViews.forEach { $0.animator().alphaValue = 0 }
+            titleCardView.animator().alphaValue = 1
+        } completionHandler: {
+            guard self.isPausedTitleVisible else { return }
+            self.controlViews.forEach { $0.isHidden = true }
+        }
+        volumeCenterY?.isActive = true
+        volumeAboveTransport?.isActive = false
+    }
+
+    private func setControlsVisible(_ visible: Bool) {
+        if visible {
+            controlViews.forEach {
+                $0.isHidden = false
+                $0.alphaValue = 0
+            }
+        }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            controlViews.forEach { $0.animator().alphaValue = visible ? 1 : 0 }
+            titleCardView.animator().alphaValue = visible ? 0 : 1
+        } completionHandler: {
+            if !visible {
+                guard self.isPausedTitleVisible else { return }
+                self.controlViews.forEach { $0.isHidden = true }
+            } else {
+                guard !self.isPausedTitleVisible else { return }
+                self.titleCardView.isHidden = true
+            }
+        }
     }
 
     func showVolumeIndicator(_ volume: Int) {
@@ -740,9 +862,14 @@ final class HUDOverlayView: NSView {
 
     private func startHideTimer() {
         hideTimer?.invalidate()
-        hideTimer = Timer.scheduledTimer(withTimeInterval: hideDelay, repeats: false) { [weak self] _ in
-            guard let self, self.isFileLoaded, !self.isPaused else { return }
-            self.hideHUD()
+        let delay = isPaused ? pausedTitleDelay : hideDelay
+        hideTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            guard let self, self.isFileLoaded else { return }
+            if self.isPaused {
+                self.showPausedTitleCard()
+            } else {
+                self.hideHUD()
+            }
         }
     }
 
@@ -772,6 +899,7 @@ final class HUDOverlayView: NSView {
         if paused {
             hideTimer?.invalidate()
             showHUD()
+            startHideTimer()
         } else {
             showHUD()
             startHideTimer()
@@ -782,8 +910,15 @@ final class HUDOverlayView: NSView {
         isFileLoaded = loaded
         if !loaded {
             hideTimer?.invalidate()
+            isPausedTitleVisible = false
             stopDisplayTimer()
             alphaValue = 0
+            controlViews.forEach {
+                $0.isHidden = false
+                $0.alphaValue = 1
+            }
+            titleCardView.alphaValue = 0
+            titleCardView.isHidden = true
             audioGlass.isHidden = true
             subsGlass.isHidden = true
             nextGlass.isHidden = true
@@ -796,7 +931,12 @@ final class HUDOverlayView: NSView {
         metaLabel.isHidden = meta?.isEmpty ?? true
         metaHeight.isActive = metaLabel.isHidden
         applyMetaStyle(size: Self.titlePointSize * Self.metaScale)
+        applyPausedTitleStyle(text: title)
+        pausedMetaLabel.stringValue = meta ?? ""
+        pausedMetaLabel.isHidden = meta?.isEmpty ?? true
+        applyPausedMetaStyle()
         titleLabel.needsLayout = true
+        pausedTitleLabel.needsLayout = true
         needsLayout = true
     }
 
@@ -806,6 +946,15 @@ final class HUDOverlayView: NSView {
 
     private func applyMetaStyle(size: CGFloat) {
         applyHaloStyle(to: metaLabel, color: NSColor(white: 1, alpha: 0.5), size: size)
+    }
+
+    private func applyPausedTitleStyle(text: String? = nil) {
+        applyHaloStyle(to: pausedTitleLabel, color: .white, size: Self.pausedTitlePointSize, text: text)
+    }
+
+    private func applyPausedMetaStyle() {
+        applyHaloStyle(to: pausedMetaLabel, color: NSColor(white: 1, alpha: 0.5),
+                       size: Self.pausedMetaPointSize)
     }
 
     /// Font first: with an empty label this is the only thing that applies a
