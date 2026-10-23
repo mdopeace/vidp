@@ -1,0 +1,5 @@
+# Hide the version-bump PR from the release notes.
+changelog:
+  exclude:
+    labels:
+      - release-bump

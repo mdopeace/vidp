@@ -118,7 +118,7 @@ jobs:
           git push -u origin "$BR"
 
           PR_URL=$(gh pr create --base main --head "$BR" --title "Release v$VERSION" \
-            --body "Bumps the version to $VERSION for release.")
+            --body "Bumps the version to $VERSION for release." --label release-bump)
           gh pr merge --merge --delete-branch || {
             echo "error: could not merge $BR into main automatically." >&2
             echo "       The version bump is committed and pushed, and its PR is still open:" >&2
