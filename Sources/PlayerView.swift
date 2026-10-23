@@ -253,6 +253,19 @@ final class PlayerView: NSView {
         }
     }
 
+    func cycleSpeed() {
+        let current = doubleProperty("speed") ?? 1.0
+        let choices = [0.5, 1.0, 1.5, 2.0]
+        let next = choices.first { $0 > current } ?? choices.first ?? 1.0
+        setSpeed(next)
+    }
+
+    func setSpeed(_ speed: Double) {
+        let clamped = min(max(speed, 0.5), 2.0)
+        let label = String(format: "%.2f", clamped)
+        setProperty("speed", label)
+    }
+
     func seekAbsolute(_ seconds: Double) {
         guard let mpv else { return }
         String(seconds).withCString { val in
@@ -396,7 +409,7 @@ final class PlayerView: NSView {
 
     func setProperty(_ name: String, _ value: String) {
         guard let mpv else { return }
-        name.withCString { n in
+        _ = name.withCString { n in
             value.withCString { v in
                 mpv_set_property_string(mpv, n, v)
             }
