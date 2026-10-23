@@ -84,7 +84,8 @@ libmpv into the app itself, so end users need none of this.
 ## Features
 
 - Native AppKit UI rendering video via mpv/OpenGL
-- Keyboard-driven controls and a minimal on-screen HUD
+- Keyboard-driven controls and a minimal on-screen HUD, with a full-window
+  paused title overlay after 10 seconds of inactivity
 - Now-playing integration with macOS MediaPlayer
 - Supports common video formats: mp4, m4v, mov, mkv, webm, avi
 - Reads media from files or the Finder ("Open With")
