@@ -921,7 +921,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         // overwriting here with a video-sized or fullscreen frame is what leaked
         // the video size into the homepage.
         if savedWindowSize == nil, !window.styleMask.contains(.fullScreen) {
-            savedWindowSize = window.frame.size
+            savedWindowSize = hasShownWindow
+                ? (window.contentView?.bounds.size ?? Self.homepageContentSize)
+                : Self.homepageContentSize
         }
         hudOverlay?.setFileLoaded(false)
         currentVideoAspectRatio = nil
