@@ -38,7 +38,9 @@ same build, and Homebrew tracks its own record of the installed version, so that
 record can fall out of step with an in-app update. `brew reinstall --cask vidp`
 re-points it at the tap's version — which rolls the app back if the tap hasn't
 published that version yet, so check `brew info --cask vidp` first if you just
-updated in-app.
+updated in-app. After an in-app update is installed, choose **Restart** to use
+it immediately or **Later** to keep using the current session and restart when
+convenient.
 
 > **Apple Silicon only.** Releases are arm64, so the prebuilt binary won't run on
 > Intel. Build from source below if you need x86_64.

@@ -653,12 +653,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                 alert.alertStyle = .informational
                 alert.addButton(withTitle: "Download")
                 alert.addButton(withTitle: "Later")
-                // Download ends in a relaunch, so hold the pause through it
-                // rather than resuming behind the download.
-                var downloading = false
-                self.runModalPaused(shouldResume: { !downloading }) {
-                    downloading = alert.runModal() == .alertFirstButtonReturn
-                    if downloading {
+                self.runModalPaused {
+                    if alert.runModal() == .alertFirstButtonReturn {
                         self.downloadAndInstallUpdate(from: json, version: latestVersion)
                     }
                 }
@@ -715,7 +711,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
                     try self.verifyChecksum(of: archiveURL, expected: String(expectedChecksum))
                     try self.extractUpdate(archiveURL: archiveURL, extractedURL: extractedURL)
                     try self.validateUpdate(at: extractedURL, version: version)
-                    try self.installUpdate(from: extractedURL, temporaryDirectory: temporaryDirectory)
+                    try self.installUpdate(from: extractedURL, temporaryDirectory: temporaryDirectory, version: version)
                 } catch {
                     self.finishUpdateFailure(temporaryDirectory, message: error.localizedDescription)
                 }
@@ -761,7 +757,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         }
     }
 
-    private func installUpdate(from appURL: URL, temporaryDirectory: URL) throws {
+    private func installUpdate(from appURL: URL, temporaryDirectory: URL, version: String) throws {
         let fileManager = FileManager.default
         let backupURL = URL(fileURLWithPath: "/Applications/.vidp.app.previous", isDirectory: true)
 
@@ -787,23 +783,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         try? fileManager.removeItem(at: temporaryDirectory)
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            // Runs on main, so reading state here can't race a video switch
-            // mid-download. Flush position first: the 3s timer may not have run.
-            self.savePosition()
-            let reopenPath = self.currentFilePath
+            self.showUpdateReady(version: version)
+        }
+    }
+
+    private func showUpdateReady(version: String) {
+        let alert = NSAlert()
+        alert.messageText = "Update Ready to Restart"
+        alert.informativeText = "Vidp v\(version) has been installed. Restart now to use the update, or choose Later to keep using this session."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Restart")
+        alert.addButton(withTitle: "Later")
+
+        var response: NSApplication.ModalResponse = .alertSecondButtonReturn
+        runModalPaused(shouldResume: { response == .alertSecondButtonReturn }) {
+            response = alert.runModal()
+        }
+
+        if response == .alertFirstButtonReturn {
+            // Flush position now; the periodic save may not have run yet.
+            savePosition()
+            let reopenPath = currentFilePath
             let relaunch = Process()
             relaunch.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            // ponytail: --args reopens the playing video; the saved position resumes it
-            relaunch.arguments = reopenPath.map { ["-n", self.applicationPath.path, "--args", $0] }
-                ?? ["-n", self.applicationPath.path]
-            // ponytail: detached relaunch, parent exits immediately; launchd reaps child
+            // Reopen the current video; its saved position resumes playback.
+            relaunch.arguments = reopenPath.map { ["-n", applicationPath.path, "--args", $0] }
+                ?? ["-n", applicationPath.path]
             do {
                 try relaunch.run()
             } catch {
-                self.showUpdateError("The update was installed but the app could not be reopened: \(error.localizedDescription)")
+                showUpdateError("The update was installed but the app could not be reopened: \(error.localizedDescription)")
                 return
             }
             NSApp.terminate(nil)
+        } else {
+            resumeAfterModalPanel()
         }
     }
 
