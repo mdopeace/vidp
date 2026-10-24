@@ -5,9 +5,16 @@ import UniformTypeIdentifiers
 import CMPV
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, PlayerDelegate, PIPViewControllerDelegate, NSMenuItemValidation {
+    private static let homepageContentSize = NSSize(width: 1000, height: 650)
+    private static let settingsSidebarWidth: CGFloat = 300
+
     var window: NSWindow!
     private var playerView: PlayerView!
+    private var playerContainer: NSVisualEffectView!
     private var hudOverlay: HUDOverlayView!
+    private var settingsSplitItem: NSSplitViewItem!
+    private var isSettingsOpen = false
+    private var settingsMonitor: Any?
     private var isPaused = true
     private var currentFilePath: String?
     private var positionTimer: Timer?
@@ -19,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     private var pipVideo: NSViewController?
     private var savedWindowSize: NSSize?
     private var hasShownWindow = false
+    private var currentVideoAspectRatio: CGFloat?
     private let applicationPath = URL(fileURLWithPath: "/Applications/vidp.app")
     private static let supportURL = URL(string: "https://buymeacoffee.com/mdopeace")!
 
@@ -27,15 +35,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
         playerView = PlayerView(frame: .zero)
 
-        let visualEffectView = NSVisualEffectView()
-        visualEffectView.material = .windowBackground
-        visualEffectView.state = .active
-        visualEffectView.blendingMode = .behindWindow
-        visualEffectView.wantsLayer = true
-        visualEffectView.autoresizingMask = [.width, .height]
+        playerContainer = NSVisualEffectView()
+        playerContainer.material = .windowBackground
+        playerContainer.state = .active
+        playerContainer.blendingMode = .behindWindow
+        playerContainer.wantsLayer = true
 
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1000, height: 650),
+            contentRect: NSRect(origin: .zero, size: Self.homepageContentSize),
             styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false)
@@ -44,12 +51,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         window.titlebarAppearsTransparent = true
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.contentView = visualEffectView
         window.delegate = self
 
-        playerView.frame = visualEffectView.bounds
-        playerView.autoresizingMask = [.width, .height]
-        visualEffectView.addSubview(playerView)
+        let playerController = NSViewController()
+        playerController.view = playerContainer
+        let settingsSidebar = SettingsSidebarView(
+            frame: NSRect(x: 0, y: 0, width: Self.settingsSidebarWidth, height: 650))
+        let settingsController = NSViewController()
+        settingsController.view = settingsSidebar
+        settingsSidebar.onDone = { [weak self] in self?.closeSettingsSidebar() }
+
+        let splitViewController = NSSplitViewController()
+        splitViewController.splitView.isVertical = true
+        splitViewController.splitView.dividerStyle = .thin
+        splitViewController.addSplitViewItem(NSSplitViewItem(viewController: playerController))
+        settingsSplitItem = NSSplitViewItem(viewController: settingsController)
+        settingsSplitItem.minimumThickness = Self.settingsSidebarWidth
+        settingsSplitItem.maximumThickness = Self.settingsSidebarWidth
+        settingsSplitItem.canCollapse = true
+        splitViewController.addSplitViewItem(settingsSplitItem)
+        settingsSplitItem.isCollapsed = true
+        splitViewController.view.wantsLayer = true
+        splitViewController.view.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        window.contentViewController = splitViewController
+
+        playerView.translatesAutoresizingMaskIntoConstraints = false
+        playerContainer.addSubview(playerView)
+        NSLayoutConstraint.activate([
+            playerView.leadingAnchor.constraint(equalTo: playerContainer.leadingAnchor),
+            playerView.trailingAnchor.constraint(equalTo: playerContainer.trailingAnchor),
+            playerView.topAnchor.constraint(equalTo: playerContainer.topAnchor),
+            playerView.bottomAnchor.constraint(equalTo: playerContainer.bottomAnchor),
+        ])
 
         if let error = playerView.setup() {
             NSLog("vidp setup failed: \(error)")
@@ -61,21 +94,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         hudOverlay = HUDOverlayView(frame: .zero)
         hudOverlay.translatesAutoresizingMaskIntoConstraints = false
         hudOverlay.playerView = playerView
+        hudOverlay.onSettingsToggle = { [weak self] in self?.toggleSettingsSidebar() }
         hudOverlay.onPiPToggle = { [weak self] in self?.togglePiP() }
         hudOverlay.onFullscreenToggle = { [weak self] in
             self?.window.toggleFullScreen(nil)
         }
         hudOverlay.onBack = { [weak self] in self?.closeCurrentVideo() }
         hudOverlay.onSupport = { [weak self] in self?.openSupportLink() }
-        visualEffectView.addSubview(hudOverlay)
+        playerContainer.addSubview(hudOverlay)
         NSLayoutConstraint.activate([
-            hudOverlay.leadingAnchor.constraint(equalTo: visualEffectView.leadingAnchor),
-            hudOverlay.trailingAnchor.constraint(equalTo: visualEffectView.trailingAnchor),
-            hudOverlay.topAnchor.constraint(equalTo: visualEffectView.topAnchor),
-            hudOverlay.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor),
+            hudOverlay.leadingAnchor.constraint(equalTo: playerContainer.leadingAnchor),
+            hudOverlay.trailingAnchor.constraint(equalTo: playerContainer.trailingAnchor),
+            hudOverlay.topAnchor.constraint(equalTo: playerContainer.topAnchor),
+            hudOverlay.bottomAnchor.constraint(equalTo: playerContainer.bottomAnchor),
         ])
 
-        // Parented to visualEffectView, not the HUD, so it shows while the HUD is hidden.
+        // Parented to the player column, not the HUD, so it shows while the HUD is hidden.
         let volumeIconView = NSImageView()
         volumeIconView.imageScaling = .scaleProportionallyUpOrDown
         volumeIconView.contentTintColor = NSColor(white: 1, alpha: 0.5)
@@ -101,12 +135,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         volumeStack.alignment = .centerY
         volumeStack.translatesAutoresizingMaskIntoConstraints = false
         volumeStack.alphaValue = 0
-        visualEffectView.addSubview(volumeStack)
+        playerContainer.addSubview(volumeStack)
 
-        let volumeCenterY = volumeStack.centerYAnchor.constraint(equalTo: visualEffectView.centerYAnchor)
+        let volumeCenterY = volumeStack.centerYAnchor.constraint(equalTo: playerContainer.centerYAnchor)
         let volumeAboveTransport = volumeStack.bottomAnchor.constraint(equalTo: hudOverlay.transportStack.topAnchor, constant: -12)
         NSLayoutConstraint.activate([
-            volumeStack.centerXAnchor.constraint(equalTo: visualEffectView.centerXAnchor),
+            volumeStack.centerXAnchor.constraint(equalTo: playerContainer.centerXAnchor),
             volumeCenterY,
         ])
 
@@ -346,8 +380,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     }
 
     @objc private func showSettings() {
-        guard hudOverlay.isFileLoaded else { return }
-        hudOverlay.showSettingsPopover()
+        toggleSettingsSidebar()
+    }
+
+    private func toggleSettingsSidebar() {
+        if isSettingsOpen {
+            closeSettingsSidebar()
+            return
+        }
+        guard hudOverlay?.isFileLoaded == true else { return }
+        isSettingsOpen.toggle()
+        settingsSplitItem.animator().isCollapsed = !isSettingsOpen
+        if isSettingsOpen {
+            settingsMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard event.keyCode == 53, self?.isSettingsOpen == true else { return event }
+                self?.closeSettingsSidebar()
+                return nil
+            }
+        } else {
+            removeSettingsMonitor()
+        }
+    }
+
+    private func closeSettingsSidebar() {
+        guard isSettingsOpen else { return }
+        isSettingsOpen = false
+        settingsSplitItem.animator().isCollapsed = true
+        removeSettingsMonitor()
+    }
+
+    private func removeSettingsMonitor() {
+        guard let settingsMonitor else { return }
+        NSEvent.removeMonitor(settingsMonitor)
+        self.settingsMonitor = nil
     }
 
     // MARK: - Playback menu actions (mirror PlayerView.keyDown)
@@ -385,7 +450,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
 
         let pip = PIPViewController()
         pip.delegate = self
-        pip.aspectRatio = playerView.frame.size
+        let aspectRatio = currentVideoAspectRatio
+            ?? playerView.frame.width / max(playerView.frame.height, 1)
+        pip.aspectRatio = NSSize(width: aspectRatio, height: 1)
         pip.playing = !isPaused
         pipController = pip
 
@@ -409,26 +476,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         restoreWindowHierarchy()
     }
 
-    /// Re-parents playerView / HUD / volume OSD back into the window and brings it
-    /// forward. Shared by exitPiP and pipDidClose (the user closing PiP from its
-    /// own button).
+    /// Re-parents playerView / HUD / volume OSD back into the player column and
+    /// brings the window forward. Shared by exitPiP and pipDidClose.
     private func restoreWindowHierarchy() {
-        if let visualEffectView = window.contentView {
-            playerView.translatesAutoresizingMaskIntoConstraints = false
-            visualEffectView.addSubview(playerView)
-            NSLayoutConstraint.activate([
-                playerView.leadingAnchor.constraint(equalTo: visualEffectView.leadingAnchor),
-                playerView.trailingAnchor.constraint(equalTo: visualEffectView.trailingAnchor),
-                playerView.topAnchor.constraint(equalTo: visualEffectView.topAnchor),
-                playerView.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor),
-            ])
-            // HUD must be above playerView to receive mouse events
-            visualEffectView.addSubview(hudOverlay)
-            // Volume indicator must be above HUD so it's visible
-            if let volumeStack = hudOverlay.volumeStack {
-                visualEffectView.addSubview(volumeStack)
-                volumeStack.alphaValue = 0
-            }
+        playerView.translatesAutoresizingMaskIntoConstraints = false
+        playerContainer.addSubview(playerView)
+        NSLayoutConstraint.activate([
+            playerView.leadingAnchor.constraint(equalTo: playerContainer.leadingAnchor),
+            playerView.trailingAnchor.constraint(equalTo: playerContainer.trailingAnchor),
+            playerView.topAnchor.constraint(equalTo: playerContainer.topAnchor),
+            playerView.bottomAnchor.constraint(equalTo: playerContainer.bottomAnchor),
+        ])
+        // HUD must be above playerView to receive mouse events.
+        playerContainer.addSubview(hudOverlay)
+        // Volume indicator must be above HUD so it's visible.
+        if let volumeStack = hudOverlay.volumeStack {
+            playerContainer.addSubview(volumeStack)
+            volumeStack.alphaValue = 0
         }
 
         NSApp.activate(ignoringOtherApps: true)
@@ -470,8 +534,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        // These attach a sheet or open a modal panel: never while one is up,
-        // and never before the window exists.
+        // Document panels cannot stack with another sheet or modal panel.
         switch menuItem.action {
         case #selector(openDocument):
             guard let window, window.attachedSheet == nil, NSApp.modalWindow == nil else { return false }
@@ -480,8 +543,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             break
         }
         if menuItem.action == #selector(showSettings) {
-            guard window?.attachedSheet == nil, NSApp.modalWindow == nil else { return false }
-            return hudOverlay?.isFileLoaded ?? false
+            return window != nil && (hudOverlay?.isFileLoaded ?? false) && NSApp.modalWindow == nil
         }
         if menuItem.action == #selector(toggleMute) {
             menuItem.title = (playerView?.boolProperty("mute") ?? false) ? "Unmute" : "Mute"
@@ -508,6 +570,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     /// they appear once, directly at video size.
     private func revealHomepage() {
         guard !hasShownWindow else { return }
+        if currentFilePath == nil {
+            window.setContentSize(Self.homepageContentSize)
+        }
         window.center()
         window.makeKeyAndOrderFront(nil)
         hasShownWindow = true
@@ -859,6 +924,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             savedWindowSize = window.frame.size
         }
         hudOverlay?.setFileLoaded(false)
+        currentVideoAspectRatio = nil
         let filename = URL(fileURLWithPath: path).lastPathComponent
         let parsed = MediaNameParser.parse(filename: filename)
         hudOverlay?.setTitle(parsed.title, meta: parsed.metaLine)
@@ -880,6 +946,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         saveVolume()
         positionTimer?.invalidate()
         playerView.stop()
+        closeSettingsSidebar()
         hudOverlay.setFileLoaded(false)
         currentFilePath = nil
         // Fullscreen can't resize in place. Exit it only when the homepage was
@@ -987,22 +1054,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     func playerDidUpdateVideoSize(width: Int64, height: Int64) {
         // Straggler mpv size events after back must never resize the homepage.
         guard currentFilePath != nil else { return }
-        guard width > 0, height > 0, let screen = window.screen ?? NSScreen.main else { return }
+        guard width > 0, height > 0 else { return }
+        currentVideoAspectRatio = CGFloat(width) / CGFloat(height)
+        guard let screen = window.screen ?? NSScreen.main else { return }
         playerView.hideOverlay()
         // In fullscreen mpv letterboxes the new aspect ratio itself; resizing here
         // would shrink the fullscreen window to windowed size, leaving blank space.
         guard !window.styleMask.contains(.fullScreen) else { return }
-        let maxW = screen.visibleFrame.width * 0.9
+        let sidebarWidth = isSettingsOpen
+            ? settingsSplitItem.minimumThickness + splitViewDividerWidth
+            : 0
+        let maxW = max(320, screen.visibleFrame.width * 0.9 - sidebarWidth)
         let maxH = screen.visibleFrame.height * 0.9
         let aspect = CGFloat(width) / CGFloat(height)
         var size = CGSize(width: maxW, height: maxW / aspect)
         if size.height > maxH {
             size = CGSize(width: maxH * aspect, height: maxH)
         }
-        window.setContentSize(size)
+        window.setContentSize(NSSize(width: size.width + sidebarWidth, height: size.height))
         window.center()
         // Deferred cold-start open: appear once, directly at video size.
         revealHomepage()
+    }
+
+    private var splitViewDividerWidth: CGFloat {
+        (window.contentViewController?.view as? NSSplitView)?.dividerThickness ?? 1
     }
 
     private func updateNowPlayingInfo() {

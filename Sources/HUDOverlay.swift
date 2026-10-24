@@ -37,7 +37,6 @@ final class HUDOverlayView: NSView {
     private let hideDelay: TimeInterval = 3.0
     private let pausedTitleDelay: TimeInterval = 10.0
     weak var playerView: PlayerView?
-    private var wasPlayingBeforeSettings = false
     private var controlViews: [NSView] = []
     private var isPausedTitleVisible = false
 
@@ -51,9 +50,8 @@ final class HUDOverlayView: NSView {
     private var subsGlass: NSGlassEffectView!
     private var speedGlass: NSGlassEffectView!
     private var speedButton: NSButton!
-    private var settingsSheet: NSWindow?
-    private var settingsMonitor: Any?
     var transportStack: NSStackView!
+    var onSettingsToggle: (() -> Void)?
     var onPiPToggle: (() -> Void)?
     var onFullscreenToggle: (() -> Void)?
     var onBack: (() -> Void)?
@@ -530,60 +528,7 @@ final class HUDOverlayView: NSView {
     }
 
     @objc private func settingsTapped() {
-        if settingsSheet != nil {
-            closeSettings()
-            return
-        }
-        // Never stack sheets: beginSheet would fail while settingsSheet gets set,
-        // orphaning state with no visible sheet.
-        guard window?.attachedSheet == nil else { return }
-        wasPlayingBeforeSettings = !(playerView?.boolProperty("pause") ?? true)
-        if wasPlayingBeforeSettings { playerView?.cyclePause() }
-
-        let settingsView = SettingsPopoverView(frame: NSRect(x: 0, y: 0, width: 400, height: 420))
-        settingsView.onDone = { [weak self] in self?.closeSettings() }
-        let vc = NSViewController()
-        vc.view = settingsView
-
-        let sheet = NSWindow(contentViewController: vc)
-        sheet.title = "Settings"
-        // No .closable: attached sheets show no traffic lights, so Done / Escape
-        // (the monitor below) are the only dismissal paths.
-        sheet.styleMask = [.titled]
-        sheet.isOpaque = false
-        sheet.backgroundColor = .clear
-        sheet.titlebarAppearsTransparent = true
-        sheet.isReleasedWhenClosed = false
-        window?.beginSheet(sheet)
-        settingsSheet = sheet
-        // Escape dismisses, same as Done. Space is left to focused controls.
-        settingsMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 { // escape
-                self?.closeSettings()
-                return nil
-            }
-            return event
-        }
-    }
-
-    private func closeSettings() {
-        guard let sheet = settingsSheet, let window else { return }
-        if let monitor = settingsMonitor {
-            NSEvent.removeMonitor(monitor)
-            settingsMonitor = nil
-        }
-        window.endSheet(sheet)
-        sheet.orderOut(nil)
-        settingsSheet = nil
-        if wasPlayingBeforeSettings { playerView?.cyclePause() }
-        wasPlayingBeforeSettings = false
-        resetHideTimer()
-    }
-
-    func showSettingsPopover() {
-        alphaValue = 1
-        startDisplayTimer()
-        settingsTapped()
+        onSettingsToggle?()
     }
 
     @objc private func settingsDidChange() {
