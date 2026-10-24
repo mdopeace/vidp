@@ -11,10 +11,7 @@
     <meta name="theme-color" content="#16171a" />
     <link rel="icon" href="icon.png" />
     <meta property="og:type" content="website" />
-    <meta
-      property="og:title"
-      content="Vidp — a video player built on libmpv"
-    />
+    <meta property="og:title" content="Vidp — a video player built on libmpv" />
     <meta
       property="og:description"
       content="Native AppKit video player for macOS. Drag a file in, or open it from Finder. mp4, mkv, webm, mov, avi."
@@ -63,15 +60,13 @@ brew install --cask vidp"
             Install details and the no-Homebrew route below.
           </p>
         </div>
-        <div class="hero-shot">
-          <div class="shot">
-            <img
-              src="screenshots/playing.png"
-              width="600"
-              height="317"
-              alt="Vidp playing a video, with the film title and a 30-second skip indicator above the transport controls, and a progress bar along the bottom"
-            />
-          </div>
+        <div class="shot">
+          <img
+            src="screenshots/playing.png"
+            width="600"
+            height="317"
+            alt="Vidp playing a video, with the film title and a 30-second skip indicator above the transport controls, and a progress bar along the bottom"
+          />
         </div>
       </div>
 
@@ -126,9 +121,7 @@ brew install --cask vidp"
               Download for macOS</a
             >
             <ol class="steps">
-              <li>
-                Unzip it and drag <code>vidp.app</code> into Applications
-              </li>
+              <li>Unzip it and drag <code>vidp.app</code> into Applications</li>
               <li>Launch it, then drop a file on the window</li>
             </ol>
             <div class="note">
@@ -170,15 +163,6 @@ brew install --cask vidp"
           </div>
           <div class="frame">
             <img
-              src="screenshots/skip.png"
-              width="600"
-              height="317"
-              loading="lazy"
-              alt="A 10-second skip indicator over the video after pressing the right arrow"
-            />
-          </div>
-          <div class="frame">
-            <img
               src="screenshots/volume.png"
               width="600"
               height="317"
@@ -193,6 +177,15 @@ brew install --cask vidp"
               height="317"
               loading="lazy"
               alt="A crossed-out speaker icon over the video after muting the volume"
+            />
+          </div>
+          <div class="frame">
+            <img
+              src="screenshots/skip.png"
+              width="600"
+              height="317"
+              loading="lazy"
+              alt="A 10-second skip indicator over the video after pressing the right arrow"
             />
           </div>
           <div class="frame">
@@ -233,6 +226,13 @@ brew install --cask vidp"
           </div>
           <div class="tile">
             <div class="glyph">
+              <i class="fa-solid fa-gauge-high" aria-hidden="true"></i>
+            </div>
+            <h3>Adjust playback speed</h3>
+            <p>Slow down or speed up with 0.5x, 1x, 1.5x and 2x controls.</p>
+          </div>
+          <div class="tile">
+            <div class="glyph">
               <i class="fa-solid fa-clone" aria-hidden="true"></i>
             </div>
             <h3>Picture in Picture</h3>
@@ -266,13 +266,6 @@ brew install --cask vidp"
             <h3>Now Playing</h3>
             <p>Hands off to the macOS controls, keys and AirPlay.</p>
           </div>
-          <div class="tile">
-            <div class="glyph">
-              <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
-            </div>
-            <h3>Uninstalls cleanly</h3>
-            <p>Full cleanup or app-only, from the app menu.</p>
-          </div>
         </div>
       </section>
 
@@ -305,10 +298,7 @@ brew install --cask vidp"
             <p>
               It isn't notarized, and macOS 15 and later removed right-click →
               Open, so the popup only offers Done / Move to Bin. Run
-              <code
-                >xattr -dr com.apple.quarantine
-                /Applications/vidp.app</code
-              >
+              <code>xattr -dr com.apple.quarantine /Applications/vidp.app</code>
               once and it opens.
             </p>
           </div>
