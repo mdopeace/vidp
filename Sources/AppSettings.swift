@@ -35,7 +35,7 @@ enum AppSettings {
             K.hudFontName: "",
             K.hudBold: true,
             K.hudItalic: false,
-            K.hudBorderSize: 1.0,
+            K.hudBorderSize: 0.0,
             K.progressColor: "1.0/1.0/1.0/1.0",
             K.subFontName: "",
             K.subBold: true,

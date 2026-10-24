@@ -67,6 +67,8 @@ final class HUDOverlayView: NSView {
     private var wasPlayingBeforeScrub = false
     private var titleCardView: NSView!
     private var titleStack: NSStackView!
+    private var titleAccentView: ClickThroughStackView!
+    private var pausedTitleAccentView: ClickThroughStackView!
     private var titleLabel: NSTextField!
     private var metaLabel: NSTextField!
     private var pausedTitleLabel: NSTextField!
@@ -91,6 +93,9 @@ final class HUDOverlayView: NSView {
     static let metaScale: CGFloat = 2.0 / 3.0
     private static let pausedTitlePointSize: CGFloat = titlePointSize * 1.5
     private static let pausedMetaPointSize: CGFloat = titlePointSize * metaScale * 1.5
+    private static let contentInset: CGFloat = 36
+    private static let titleAccentWidth: CGFloat = 5
+    private static let titleTextInset: CGFloat = 20
     private static let topControlInset: CGFloat = 36
     private static let topControlDiameter: CGFloat = 40
     var volumeIconWidth: NSLayoutConstraint!
@@ -140,7 +145,7 @@ final class HUDOverlayView: NSView {
         addSubview(topLeftRow)
         NSLayoutConstraint.activate([
             topLeftRow.topAnchor.constraint(equalTo: topAnchor, constant: Self.topControlInset),
-            topLeftRow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 36),
+            topLeftRow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.contentInset),
         ])
 
         // Top-right: mute + audio + subtitles + speed + pip
@@ -180,11 +185,17 @@ final class HUDOverlayView: NSView {
         addSubview(topRow)
         NSLayoutConstraint.activate([
             topRow.topAnchor.constraint(equalTo: topAnchor, constant: Self.topControlInset),
-            topRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -36),
+            topRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.contentInset),
         ])
         updateSpeedButton()
 
         // Title above progress bar, left-aligned
+        titleAccentView = ClickThroughStackView()
+        titleAccentView.wantsLayer = true
+        titleAccentView.layer?.backgroundColor = NSColor(white: 1, alpha: 0.5).cgColor
+        titleAccentView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(titleAccentView)
+
         titleCardView = NSView()
         titleCardView.translatesAutoresizingMaskIntoConstraints = false
         titleCardView.wantsLayer = true
@@ -250,6 +261,13 @@ final class HUDOverlayView: NSView {
         titleStack.spacing = 2
         titleStack.translatesAutoresizingMaskIntoConstraints = false
         titleCardView.addSubview(titleStack)
+
+        pausedTitleAccentView = ClickThroughStackView()
+        pausedTitleAccentView.wantsLayer = true
+        pausedTitleAccentView.layer?.backgroundColor = NSColor(white: 1, alpha: 0.5).cgColor
+        pausedTitleAccentView.translatesAutoresizingMaskIntoConstraints = false
+        titleCardView.addSubview(pausedTitleAccentView)
+
         addSubview(titleLabel)
         addSubview(metaLabel)
 
@@ -303,19 +321,27 @@ final class HUDOverlayView: NSView {
             titleCardView.trailingAnchor.constraint(equalTo: trailingAnchor),
             titleCardView.topAnchor.constraint(equalTo: topAnchor),
             titleCardView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            titleStack.leadingAnchor.constraint(equalTo: titleCardView.leadingAnchor, constant: 42),
-            titleStack.trailingAnchor.constraint(equalTo: titleCardView.trailingAnchor, constant: -42),
+            titleStack.leadingAnchor.constraint(equalTo: barRow.leadingAnchor, constant: Self.titleTextInset),
+            titleStack.trailingAnchor.constraint(equalTo: barRow.trailingAnchor),
             titleStack.topAnchor.constraint(equalTo: titleCardView.topAnchor, constant: Self.topControlInset),
-            barRow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 36),
-            barRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -36),
-            barRow.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -36),
+            pausedTitleAccentView.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
+            pausedTitleAccentView.widthAnchor.constraint(equalToConstant: Self.titleAccentWidth),
+            pausedTitleAccentView.topAnchor.constraint(equalTo: titleStack.topAnchor),
+            pausedTitleAccentView.bottomAnchor.constraint(equalTo: titleStack.bottomAnchor),
+            barRow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.contentInset),
+            barRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.contentInset),
+            barRow.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.contentInset),
             bottomRightRow.trailingAnchor.constraint(equalTo: barRow.trailingAnchor),
             bottomRightRow.bottomAnchor.constraint(equalTo: barRow.topAnchor, constant: -12),
-            titleLabel.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
+            titleAccentView.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
+            titleAccentView.widthAnchor.constraint(equalToConstant: Self.titleAccentWidth),
+            titleAccentView.topAnchor.constraint(equalTo: metaLabel.topAnchor),
+            titleAccentView.bottomAnchor.constraint(equalTo: titleLabel.bottomAnchor),
+            titleLabel.leadingAnchor.constraint(equalTo: barRow.leadingAnchor, constant: Self.titleTextInset),
             titleLabel.bottomAnchor.constraint(equalTo: barRow.topAnchor, constant: -8),
-            titleLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.7),
-            metaLabel.leadingAnchor.constraint(equalTo: barRow.leadingAnchor),
-            metaLabel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.7),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: barRow.trailingAnchor),
+            metaLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            metaLabel.trailingAnchor.constraint(lessThanOrEqualTo: barRow.trailingAnchor),
             pausedTitleLabel.widthAnchor.constraint(equalTo: titleStack.widthAnchor),
             pausedMetaLabel.widthAnchor.constraint(equalTo: titleStack.widthAnchor),
             elapsedLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 48),
@@ -326,7 +352,8 @@ final class HUDOverlayView: NSView {
         metaHeight.isActive = true
         metaLabel.bottomAnchor.constraint(equalTo: titleLabel.topAnchor, constant: -2).isActive = true
 
-        controlViews = [transportStack, topLeftRow, topRow, barRow, bottomRightRow, titleLabel, metaLabel]
+        controlViews = [transportStack, topLeftRow, topRow, barRow, bottomRightRow,
+                        titleAccentView, titleLabel, metaLabel]
         controlViews.forEach { $0.alphaValue = 1 }
 
         addTrackingArea(NSTrackingArea(
@@ -341,8 +368,9 @@ final class HUDOverlayView: NSView {
 
     override func layout() {
         super.layout()
-        titleLabel.preferredMaxLayoutWidth = bounds.width * 0.7
-        pausedTitleLabel.preferredMaxLayoutWidth = bounds.width * 0.84
+        let titleWidth = max(0, bounds.width - 2 * Self.contentInset - Self.titleTextInset)
+        titleLabel.preferredMaxLayoutWidth = titleWidth
+        pausedTitleLabel.preferredMaxLayoutWidth = titleWidth
     }
 
     @available(*, unavailable)
