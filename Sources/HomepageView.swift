@@ -1,5 +1,13 @@
 import AppKit
 
+enum HomepageEmptyStateStyle {
+    static let iconPointSize: CGFloat = 38
+    static let iconViewSize: CGFloat = 40
+    static let titleFontSize: CGFloat = 20
+    static let subtitleFontSize: CGFloat = 13
+    static let verticalSpacing: CGFloat = 8
+}
+
 private final class NavigationButtonContentView: NSView {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
@@ -127,17 +135,20 @@ final class HomepageView: NSView {
         emptyStateView.translatesAutoresizingMaskIntoConstraints = false
         contentArea.addSubview(emptyStateView)
         emptyIcon.image = NSImage(systemSymbolName: "film", accessibilityDescription: nil)?
-            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 38, weight: .regular))
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(
+                pointSize: HomepageEmptyStateStyle.iconPointSize, weight: .regular))
         emptyIcon.contentTintColor = .secondaryLabelColor
         emptyIcon.translatesAutoresizingMaskIntoConstraints = false
-        emptyTitle.font = .systemFont(ofSize: 20, weight: .medium)
+        emptyIcon.widthAnchor.constraint(equalToConstant: HomepageEmptyStateStyle.iconViewSize).isActive = true
+        emptyIcon.heightAnchor.constraint(equalToConstant: HomepageEmptyStateStyle.iconViewSize).isActive = true
+        emptyTitle.font = .systemFont(ofSize: HomepageEmptyStateStyle.titleFontSize, weight: .medium)
         emptyTitle.textColor = .labelColor
-        emptySubtitle.font = .systemFont(ofSize: 13)
+        emptySubtitle.font = .systemFont(ofSize: HomepageEmptyStateStyle.subtitleFontSize)
         emptySubtitle.textColor = .secondaryLabelColor
         let emptyStack = NSStackView(views: [emptyIcon, emptyTitle, emptySubtitle])
         emptyStack.orientation = .vertical
         emptyStack.alignment = .centerX
-        emptyStack.spacing = 8
+        emptyStack.spacing = HomepageEmptyStateStyle.verticalSpacing
         emptyStack.translatesAutoresizingMaskIntoConstraints = false
         emptyStateView.addSubview(emptyStack)
         NSLayoutConstraint.activate([
@@ -180,6 +191,7 @@ final class HomepageView: NSView {
             let icon = NSImageView()
             icon.image = NSImage(systemSymbolName: section.symbol, accessibilityDescription: nil)?
                 .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 16, weight: .medium))
+            icon.imageAlignment = .alignLeft
             icon.imageScaling = .scaleProportionallyDown
             icon.translatesAutoresizingMaskIntoConstraints = false
             content.addSubview(icon)
@@ -252,7 +264,8 @@ final class HomepageView: NSView {
         }
 
         emptyIcon.image = NSImage(systemSymbolName: selectedSection.symbol, accessibilityDescription: nil)?
-            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 38, weight: .regular))
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(
+                pointSize: HomepageEmptyStateStyle.iconPointSize, weight: .regular))
         emptyTitle.stringValue = selectedSection.emptyTitle
         emptySubtitle.stringValue = selectedSection.emptySubtitle
     }
