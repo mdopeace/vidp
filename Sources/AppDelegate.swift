@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     var window: NSWindow!
     private var playerView: PlayerView!
     private var playerContainer: NSVisualEffectView!
+    private var homepageView: HomepageView!
     private var hudOverlay: HUDOverlayView!
     private var settingsSplitItem: NSSplitViewItem!
     private var isSettingsOpen = false
@@ -53,8 +54,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         window.backgroundColor = .clear
         window.delegate = self
 
+        homepageView = HomepageView(playerContainer: playerContainer)
         let playerController = NSViewController()
-        playerController.view = playerContainer
+        playerController.view = homepageView
         let settingsSidebar = SettingsSidebarView(
             frame: NSRect(x: 0, y: 0, width: Self.settingsSidebarWidth, height: 650))
         let settingsController = NSViewController()
@@ -170,6 +172,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             self?.performVersionCheck(showUpToDate: false)
         }
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if !hasVisibleWindows, !hasShownWindow {
+            revealHomepage()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+        }
+        return true
     }
 
     private func setupMainMenu() {
@@ -574,6 +586,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             window.setContentSize(Self.homepageContentSize)
         }
         window.center()
+        NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         hasShownWindow = true
     }
@@ -939,6 +952,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
             window.makeKeyAndOrderFront(nil)
         }
         currentFilePath = path
+        homepageView.setPlaybackActive(true)
         playerView.load(path: path)
         startPositionTimer()
     }
@@ -951,6 +965,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         closeSettingsSidebar()
         hudOverlay.setFileLoaded(false)
         currentFilePath = nil
+        homepageView.setPlaybackActive(false)
         // Fullscreen can't resize in place. Exit it only when the homepage was
         // windowed; windowDidExitFullScreen restores its size.
         if window.styleMask.contains(.fullScreen) {
