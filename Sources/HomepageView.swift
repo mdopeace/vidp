@@ -243,8 +243,7 @@ final class HomepageView: NSView {
             let title = navigationTitles[section.rawValue]
             let isSelected = section == selectedSection
             button.state = isSelected ? .on : .off
-            let font = NSFont.systemFont(ofSize: 14, weight: isSelected ? .semibold : .regular)
-            title.font = font
+            title.font = .systemFont(ofSize: 14)
             title.textColor = .labelColor
             icon.contentTintColor = .systemBlue
             button.layer?.backgroundColor = isSelected
