@@ -52,7 +52,7 @@ final class HomepageView: NSView {
 
         var emptySubtitle: String {
             switch self {
-            case .recent: "Videos you open will appear here."
+            case .recent: "Open a video to start watching."
             case .home: ""
             case .movies, .tv, .others: "Open a video to start watching."
             }
@@ -62,15 +62,12 @@ final class HomepageView: NSView {
     private let sidebarWidth: CGFloat = 200
     private let playerContainer: NSView
     private let sidebar = NSVisualEffectView()
-    private let separator = NSView()
     private let contentArea = NSView()
     private let emptyStateView = NSView()
     private let emptyIcon = NSImageView()
     private let emptyTitle = NSTextField(labelWithString: "")
     private let emptySubtitle = NSTextField(labelWithString: "")
     private var buttons: [NSButton] = []
-    private var navigationIcons: [NSImageView] = []
-    private var navigationTitles: [NSTextField] = []
     private var selectedSection = Section.home
     private var isPlaybackActive = false
     private var sidebarContentConstraint: NSLayoutConstraint!
@@ -85,11 +82,6 @@ final class HomepageView: NSView {
         sidebar.blendingMode = .behindWindow
         sidebar.translatesAutoresizingMaskIntoConstraints = false
         addSubview(sidebar)
-
-        separator.wantsLayer = true
-        separator.layer?.backgroundColor = NSColor.separatorColor.cgColor
-        separator.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(separator)
 
         let background = NSVisualEffectView()
         background.material = .windowBackground
@@ -113,10 +105,6 @@ final class HomepageView: NSView {
             sidebar.topAnchor.constraint(equalTo: topAnchor),
             sidebar.bottomAnchor.constraint(equalTo: bottomAnchor),
             sidebar.widthAnchor.constraint(equalToConstant: sidebarWidth),
-            separator.leadingAnchor.constraint(equalTo: sidebar.trailingAnchor),
-            separator.topAnchor.constraint(equalTo: topAnchor),
-            separator.bottomAnchor.constraint(equalTo: bottomAnchor),
-            separator.widthAnchor.constraint(equalToConstant: 1),
             contentArea.trailingAnchor.constraint(equalTo: trailingAnchor),
             contentArea.topAnchor.constraint(equalTo: topAnchor),
             contentArea.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -194,6 +182,7 @@ final class HomepageView: NSView {
             icon.imageAlignment = .alignCenter
             icon.imageScaling = .scaleProportionallyDown
             icon.translatesAutoresizingMaskIntoConstraints = false
+            icon.contentTintColor = .systemBlue
             content.addSubview(icon)
 
             let title = NSTextField(labelWithString: section.title)
@@ -213,8 +202,6 @@ final class HomepageView: NSView {
             ])
 
             buttons.append(button)
-            navigationIcons.append(icon)
-            navigationTitles.append(title)
             navigation.addArrangedSubview(button)
             button.widthAnchor.constraint(equalTo: navigation.widthAnchor).isActive = true
         }
@@ -248,18 +235,20 @@ final class HomepageView: NSView {
         updateContentVisibility()
     }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            updateSelectedSection()
+        }
+    }
+
     private func updateSelectedSection() {
         for section in Section.allCases {
             let button = buttons[section.rawValue]
-            let icon = navigationIcons[section.rawValue]
-            let title = navigationTitles[section.rawValue]
             let isSelected = section == selectedSection
             button.state = isSelected ? .on : .off
-            title.font = .systemFont(ofSize: 14)
-            title.textColor = .labelColor
-            icon.contentTintColor = .systemBlue
             button.layer?.backgroundColor = isSelected
-                ? NSColor(white: 1, alpha: 0.14).cgColor
+                ? NSColor.selectedContentBackgroundColor.withAlphaComponent(0.4).cgColor
                 : NSColor.clear.cgColor
         }
 
@@ -273,7 +262,6 @@ final class HomepageView: NSView {
     private func updateContentVisibility() {
         let showPlayer = isPlaybackActive || selectedSection == .home
         sidebar.isHidden = isPlaybackActive
-        separator.isHidden = isPlaybackActive
         if isPlaybackActive {
             if sidebarContentConstraint.isActive {
                 sidebarContentConstraint.isActive = false

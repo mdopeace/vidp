@@ -64,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         settingsSidebar.onDone = { [weak self] in self?.closeSettingsSidebar() }
 
         let splitViewController = NSSplitViewController()
+        splitViewController.splitView = DividerlessSplitView()
         splitViewController.splitView.isVertical = true
         splitViewController.splitView.dividerStyle = .thin
         splitViewController.addSplitViewItem(NSSplitViewItem(viewController: playerController))
@@ -1141,6 +1142,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     func playerDidEncounterError(_ message: String) {
         NSLog("vidp playback error: \(message)")
         playerView.showOverlay()
+        homepageView.setPlaybackActive(false)
         // Never leave a deferred cold-start open invisible.
         revealHomepage()
     }
@@ -1153,6 +1155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
         }
         guard playAdjacent(offset: 1) else {
             playerView.showOverlay()
+            homepageView.setPlaybackActive(false)
             revealHomepage()
             return
         }
@@ -1227,4 +1230,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Play
     func playerDidToggleMute(_ muted: Bool) {
         hudOverlay.setMuted(muted)
     }
+}
+
+/// No divider line between the player column and the settings panel; the two
+/// materials already separate them.
+private final class DividerlessSplitView: NSSplitView {
+    override var dividerThickness: CGFloat { 0 }
 }
