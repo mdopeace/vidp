@@ -26,7 +26,7 @@ final class SettingsSidebarView: NSView {
         wantsLayer = true
 
         let background = NSVisualEffectView()
-        background.material = .windowBackground
+        background.material = .sidebar
         background.state = .active
         background.blendingMode = .behindWindow
         background.translatesAutoresizingMaskIntoConstraints = false

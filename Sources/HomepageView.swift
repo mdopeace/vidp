@@ -1,0 +1,283 @@
+import AppKit
+
+enum HomepageEmptyStateStyle {
+    static let iconPointSize: CGFloat = 38
+    static let iconViewSize: CGFloat = 40
+    static let titleFontSize: CGFloat = 20
+    static let subtitleFontSize: CGFloat = 13
+    static let verticalSpacing: CGFloat = 8
+}
+
+private final class NavigationButtonContentView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
+final class HomepageView: NSView {
+    private enum Section: Int, CaseIterable {
+        case recent
+        case home
+        case movies
+        case tv
+        case others
+
+        var title: String {
+            switch self {
+            case .recent: "Recently Played"
+            case .home: "Home"
+            case .movies: "Movies"
+            case .tv: "TV Shows"
+            case .others: "Others"
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .recent: "clock"
+            case .home: "house"
+            case .movies: "film"
+            case .tv: "tv"
+            case .others: "square.grid.2x2"
+            }
+        }
+
+        var emptyTitle: String {
+            switch self {
+            case .recent: "No recent videos"
+            case .home: ""
+            case .movies: "No movies yet"
+            case .tv: "No TV shows yet"
+            case .others: "No other videos yet"
+            }
+        }
+
+        var emptySubtitle: String {
+            switch self {
+            case .recent: "Open a video to start watching."
+            case .home: ""
+            case .movies, .tv, .others: "Open a video to start watching."
+            }
+        }
+    }
+
+    private let sidebarWidth: CGFloat = 200
+    private let playerContainer: NSView
+    private let sidebar = NSVisualEffectView()
+    private let contentArea = NSView()
+    private let emptyStateView = NSView()
+    private let emptyIcon = NSImageView()
+    private let emptyTitle = NSTextField(labelWithString: "")
+    private let emptySubtitle = NSTextField(labelWithString: "")
+    private var buttons: [NSButton] = []
+    private var selectedSection = Section.home
+    private var isPlaybackActive = false
+    private var sidebarContentConstraint: NSLayoutConstraint!
+    private var playerContentConstraint: NSLayoutConstraint!
+
+    init(playerContainer: NSView) {
+        self.playerContainer = playerContainer
+        super.init(frame: .zero)
+
+        sidebar.material = .sidebar
+        sidebar.state = .active
+        sidebar.blendingMode = .behindWindow
+        sidebar.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(sidebar)
+
+        let background = NSVisualEffectView()
+        background.material = .windowBackground
+        background.state = .active
+        background.blendingMode = .behindWindow
+        background.translatesAutoresizingMaskIntoConstraints = false
+        contentArea.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(contentArea)
+        contentArea.addSubview(background)
+        NSLayoutConstraint.activate([
+            background.leadingAnchor.constraint(equalTo: contentArea.leadingAnchor),
+            background.trailingAnchor.constraint(equalTo: contentArea.trailingAnchor),
+            background.topAnchor.constraint(equalTo: contentArea.topAnchor),
+            background.bottomAnchor.constraint(equalTo: contentArea.bottomAnchor),
+        ])
+
+        sidebarContentConstraint = contentArea.leadingAnchor.constraint(equalTo: sidebar.trailingAnchor)
+        playerContentConstraint = contentArea.leadingAnchor.constraint(equalTo: leadingAnchor)
+        NSLayoutConstraint.activate([
+            sidebar.leadingAnchor.constraint(equalTo: leadingAnchor),
+            sidebar.topAnchor.constraint(equalTo: topAnchor),
+            sidebar.bottomAnchor.constraint(equalTo: bottomAnchor),
+            sidebar.widthAnchor.constraint(equalToConstant: sidebarWidth),
+            contentArea.trailingAnchor.constraint(equalTo: trailingAnchor),
+            contentArea.topAnchor.constraint(equalTo: topAnchor),
+            contentArea.bottomAnchor.constraint(equalTo: bottomAnchor),
+            sidebarContentConstraint,
+        ])
+
+        playerContainer.translatesAutoresizingMaskIntoConstraints = false
+        contentArea.addSubview(playerContainer)
+        NSLayoutConstraint.activate([
+            playerContainer.leadingAnchor.constraint(equalTo: contentArea.leadingAnchor),
+            playerContainer.trailingAnchor.constraint(equalTo: contentArea.trailingAnchor),
+            playerContainer.topAnchor.constraint(equalTo: contentArea.topAnchor),
+            playerContainer.bottomAnchor.constraint(equalTo: contentArea.bottomAnchor),
+        ])
+
+        emptyStateView.translatesAutoresizingMaskIntoConstraints = false
+        contentArea.addSubview(emptyStateView)
+        emptyIcon.image = NSImage(systemSymbolName: "film", accessibilityDescription: nil)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(
+                pointSize: HomepageEmptyStateStyle.iconPointSize, weight: .regular))
+        emptyIcon.contentTintColor = .secondaryLabelColor
+        emptyIcon.translatesAutoresizingMaskIntoConstraints = false
+        emptyIcon.widthAnchor.constraint(equalToConstant: HomepageEmptyStateStyle.iconViewSize).isActive = true
+        emptyIcon.heightAnchor.constraint(equalToConstant: HomepageEmptyStateStyle.iconViewSize).isActive = true
+        emptyTitle.font = .systemFont(ofSize: HomepageEmptyStateStyle.titleFontSize, weight: .medium)
+        emptyTitle.textColor = .labelColor
+        emptySubtitle.font = .systemFont(ofSize: HomepageEmptyStateStyle.subtitleFontSize)
+        emptySubtitle.textColor = .secondaryLabelColor
+        let emptyStack = NSStackView(views: [emptyIcon, emptyTitle, emptySubtitle])
+        emptyStack.orientation = .vertical
+        emptyStack.alignment = .centerX
+        emptyStack.spacing = HomepageEmptyStateStyle.verticalSpacing
+        emptyStack.translatesAutoresizingMaskIntoConstraints = false
+        emptyStateView.addSubview(emptyStack)
+        NSLayoutConstraint.activate([
+            emptyStateView.leadingAnchor.constraint(equalTo: contentArea.leadingAnchor),
+            emptyStateView.trailingAnchor.constraint(equalTo: contentArea.trailingAnchor),
+            emptyStateView.topAnchor.constraint(equalTo: contentArea.topAnchor),
+            emptyStateView.bottomAnchor.constraint(equalTo: contentArea.bottomAnchor),
+            emptyStack.centerXAnchor.constraint(equalTo: emptyStateView.centerXAnchor),
+            emptyStack.centerYAnchor.constraint(equalTo: emptyStateView.centerYAnchor),
+        ])
+
+        let navigation = NSStackView()
+        navigation.orientation = .vertical
+        navigation.alignment = .leading
+        navigation.distribution = .fill
+        navigation.spacing = 4
+        for section in Section.allCases {
+            let button = NSButton(title: section.title, target: self, action: #selector(sectionTapped(_:)))
+            button.tag = section.rawValue
+            button.attributedTitle = NSAttributedString(
+                string: section.title,
+                attributes: [.foregroundColor: NSColor.clear])
+            button.isBordered = false
+            button.setButtonType(.toggle)
+            button.wantsLayer = true
+            button.layer?.cornerRadius = 9
+            button.translatesAutoresizingMaskIntoConstraints = false
+            button.heightAnchor.constraint(equalToConstant: 34).isActive = true
+
+            let content = NavigationButtonContentView()
+            content.translatesAutoresizingMaskIntoConstraints = false
+            button.addSubview(content)
+            NSLayoutConstraint.activate([
+                content.leadingAnchor.constraint(equalTo: button.leadingAnchor),
+                content.trailingAnchor.constraint(equalTo: button.trailingAnchor),
+                content.topAnchor.constraint(equalTo: button.topAnchor),
+                content.bottomAnchor.constraint(equalTo: button.bottomAnchor),
+            ])
+
+            let icon = NSImageView()
+            icon.image = NSImage(systemSymbolName: section.symbol, accessibilityDescription: nil)?
+                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 16, weight: .medium))
+            icon.imageAlignment = .alignCenter
+            icon.imageScaling = .scaleProportionallyDown
+            icon.translatesAutoresizingMaskIntoConstraints = false
+            icon.contentTintColor = .systemBlue
+            content.addSubview(icon)
+
+            let title = NSTextField(labelWithString: section.title)
+            title.font = .systemFont(ofSize: 14)
+            title.textColor = .labelColor
+            title.translatesAutoresizingMaskIntoConstraints = false
+            content.addSubview(title)
+
+            NSLayoutConstraint.activate([
+                icon.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 8),
+                icon.centerYAnchor.constraint(equalTo: content.centerYAnchor),
+                icon.widthAnchor.constraint(equalToConstant: 24),
+                icon.heightAnchor.constraint(equalToConstant: 24),
+                title.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 8),
+                title.centerYAnchor.constraint(equalTo: content.centerYAnchor),
+                title.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor, constant: -8),
+            ])
+
+            buttons.append(button)
+            navigation.addArrangedSubview(button)
+            button.widthAnchor.constraint(equalTo: navigation.widthAnchor).isActive = true
+        }
+
+        navigation.translatesAutoresizingMaskIntoConstraints = false
+        sidebar.addSubview(navigation)
+        NSLayoutConstraint.activate([
+            navigation.leadingAnchor.constraint(equalTo: sidebar.leadingAnchor, constant: 12),
+            navigation.trailingAnchor.constraint(equalTo: sidebar.trailingAnchor, constant: -12),
+            navigation.topAnchor.constraint(equalTo: sidebar.topAnchor, constant: 40),
+        ])
+
+        updateSelectedSection()
+        updateContentVisibility()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("not supported")
+    }
+
+    func setPlaybackActive(_ active: Bool) {
+        isPlaybackActive = active
+        updateContentVisibility()
+    }
+
+    @objc private func sectionTapped(_ sender: NSButton) {
+        guard let section = Section(rawValue: sender.tag) else { return }
+        selectedSection = section
+        updateSelectedSection()
+        updateContentVisibility()
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            updateSelectedSection()
+        }
+    }
+
+    private func updateSelectedSection() {
+        for section in Section.allCases {
+            let button = buttons[section.rawValue]
+            let isSelected = section == selectedSection
+            button.state = isSelected ? .on : .off
+            button.layer?.backgroundColor = isSelected
+                ? NSColor.selectedContentBackgroundColor.withAlphaComponent(0.4).cgColor
+                : NSColor.clear.cgColor
+        }
+
+        emptyIcon.image = NSImage(systemSymbolName: selectedSection.symbol, accessibilityDescription: nil)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(
+                pointSize: HomepageEmptyStateStyle.iconPointSize, weight: .regular))
+        emptyTitle.stringValue = selectedSection.emptyTitle
+        emptySubtitle.stringValue = selectedSection.emptySubtitle
+    }
+
+    private func updateContentVisibility() {
+        let showPlayer = isPlaybackActive || selectedSection == .home
+        sidebar.isHidden = isPlaybackActive
+        if isPlaybackActive {
+            if sidebarContentConstraint.isActive {
+                sidebarContentConstraint.isActive = false
+            }
+            if !playerContentConstraint.isActive {
+                playerContentConstraint.isActive = true
+            }
+        } else {
+            if playerContentConstraint.isActive {
+                playerContentConstraint.isActive = false
+            }
+            if !sidebarContentConstraint.isActive {
+                sidebarContentConstraint.isActive = true
+            }
+        }
+        playerContainer.isHidden = !showPlayer
+        emptyStateView.isHidden = showPlayer
+    }
+}

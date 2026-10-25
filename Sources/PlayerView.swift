@@ -40,19 +40,21 @@ final class PlayerView: NSView {
 
         let iconView = NSImageView()
         iconView.translatesAutoresizingMaskIntoConstraints = false
-        iconView.image = NSImage(systemSymbolName: "arrow.down.doc", accessibilityDescription: "Drop a video file")
+        iconView.image = NSImage(systemSymbolName: "arrow.down.doc", accessibilityDescription: "Drop a video file")?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(
+                pointSize: HomepageEmptyStateStyle.iconPointSize, weight: .regular))
         iconView.contentTintColor = .secondaryLabelColor
         iconView.imageScaling = .scaleProportionallyUpOrDown
         overlayView.addSubview(iconView)
 
         titleLabel = NSTextField(labelWithString: "Drag & drop a video to play")
-        titleLabel.font = .systemFont(ofSize: 20)
+        titleLabel.font = .systemFont(ofSize: HomepageEmptyStateStyle.titleFontSize, weight: .medium)
         titleLabel.textColor = .labelColor
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         overlayView.addSubview(titleLabel)
 
         subtitleLabel = NSTextField(labelWithString: "or press \u{2318}O to browse files")
-        subtitleLabel.font = .systemFont(ofSize: 13)
+        subtitleLabel.font = .systemFont(ofSize: HomepageEmptyStateStyle.subtitleFontSize)
         subtitleLabel.textColor = .secondaryLabelColor
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         overlayView.addSubview(subtitleLabel)
@@ -62,11 +64,13 @@ final class PlayerView: NSView {
             overlayView.centerYAnchor.constraint(equalTo: centerYAnchor),
             iconView.topAnchor.constraint(equalTo: overlayView.topAnchor),
             iconView.centerXAnchor.constraint(equalTo: overlayView.centerXAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 40),
-            iconView.heightAnchor.constraint(equalToConstant: 40),
-            titleLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: 14),
+            iconView.widthAnchor.constraint(equalToConstant: HomepageEmptyStateStyle.iconViewSize),
+            iconView.heightAnchor.constraint(equalToConstant: HomepageEmptyStateStyle.iconViewSize),
+            titleLabel.topAnchor.constraint(
+                equalTo: iconView.bottomAnchor, constant: HomepageEmptyStateStyle.verticalSpacing),
             titleLabel.centerXAnchor.constraint(equalTo: overlayView.centerXAnchor),
-            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 6),
+            subtitleLabel.topAnchor.constraint(
+                equalTo: titleLabel.bottomAnchor, constant: HomepageEmptyStateStyle.verticalSpacing),
             subtitleLabel.centerXAnchor.constraint(equalTo: overlayView.centerXAnchor),
             subtitleLabel.bottomAnchor.constraint(equalTo: overlayView.bottomAnchor),
         ])
