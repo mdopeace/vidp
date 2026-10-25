@@ -14,47 +14,47 @@ private final class NavigationButtonContentView: NSView {
 
 final class HomepageView: NSView {
     private enum Section: Int, CaseIterable {
-        case recents
+        case recent
         case home
         case movies
-        case series
+        case tv
         case others
 
         var title: String {
             switch self {
-            case .recents: "Recents"
+            case .recent: "Recently Played"
             case .home: "Home"
             case .movies: "Movies"
-            case .series: "Series"
+            case .tv: "TV Shows"
             case .others: "Others"
             }
         }
 
         var symbol: String {
             switch self {
-            case .recents: "clock"
+            case .recent: "clock"
             case .home: "house"
             case .movies: "film"
-            case .series: "tv"
+            case .tv: "tv"
             case .others: "square.grid.2x2"
             }
         }
 
         var emptyTitle: String {
             switch self {
-            case .recents: "No recent videos"
+            case .recent: "No recent videos"
             case .home: ""
             case .movies: "No movies yet"
-            case .series: "No series yet"
+            case .tv: "No TV shows yet"
             case .others: "No other videos yet"
             }
         }
 
         var emptySubtitle: String {
             switch self {
-            case .recents: "Videos you open will appear here."
+            case .recent: "Videos you open will appear here."
             case .home: ""
-            case .movies, .series, .others: "Open a video to start watching."
+            case .movies, .tv, .others: "Open a video to start watching."
             }
         }
     }
@@ -191,7 +191,7 @@ final class HomepageView: NSView {
             let icon = NSImageView()
             icon.image = NSImage(systemSymbolName: section.symbol, accessibilityDescription: nil)?
                 .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 16, weight: .medium))
-            icon.imageAlignment = .alignLeft
+            icon.imageAlignment = .alignCenter
             icon.imageScaling = .scaleProportionallyDown
             icon.translatesAutoresizingMaskIntoConstraints = false
             content.addSubview(icon)

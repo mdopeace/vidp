@@ -86,7 +86,7 @@ libmpv into the app itself, so end users need none of this.
 ## Features
 
 - Native AppKit UI rendering video via mpv/OpenGL
-- Homepage navigation for Recents, Home, Movies, Series, and Others
+- Homepage navigation for Recently Played, Home, Movies, TV Shows, and Others
 - Compact, scroll-free native settings sidebar with bounded numeric controls
 - Keyboard-driven controls and a minimal on-screen HUD, with a full-window
   paused title overlay after 10 seconds of inactivity
