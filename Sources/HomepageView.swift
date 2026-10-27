@@ -22,7 +22,7 @@ final class HomepageView: NSView {
 
         var title: String {
             switch self {
-            case .recent: "Recently Played"
+            case .recent: "Recently Watched"
             case .home: "Home"
             case .movies: "Movies"
             case .tv: "TV Shows"
